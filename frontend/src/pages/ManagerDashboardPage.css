@@ -1,0 +1,98 @@
+.manager-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+.manager-header {
+  margin-bottom: 32px;
+}
+
+.manager-header h1 {
+  font-size: 1.75rem;
+  color: #343a40;
+  margin-bottom: 8px;
+}
+
+.manager-header p {
+  color: #6c757d;
+}
+
+.error-banner {
+  background-color: #fce4ec;
+  color: #c62828;
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.loading-state {
+  text-align: center;
+  padding: 60px;
+  color: #6c757d;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.stat-card {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card:hover {
+  border-color: #1976d2;
+}
+
+.stat-card.active {
+  border-color: #1976d2;
+  background: #f0f7ff;
+}
+
+.stat-count {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1976d2;
+  display: block;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.tickets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px;
+  background: white;
+  border-radius: 8px;
+  border: 1px dashed #dee2e6;
+}
+
+.empty-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 16px;
+}
+
+.empty-state h3 {
+  color: #343a40;
+}

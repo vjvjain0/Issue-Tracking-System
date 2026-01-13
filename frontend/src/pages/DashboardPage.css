@@ -1,0 +1,109 @@
+.dashboard-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 32px 24px;
+}
+
+.dashboard-header {
+    margin-bottom: 32px;
+}
+
+.dashboard-header h1 {
+    font-size: 1.75rem;
+    color: #343a40;
+    margin-bottom: 8px;
+}
+
+.dashboard-header p {
+    color: #6c757d;
+}
+
+.error-banner {
+    background-color: #fce4ec;
+    color: #c62828;
+    padding: 12px 20px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+}
+
+.loading-state {
+    text-align: center;
+    padding: 60px;
+    color: #6c757d;
+    font-size: 1.1rem;
+}
+
+.tabs-container {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+}
+
+.dashboard-container .tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #6c757d;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.dashboard-container .tab-btn:hover {
+    border-color: #1976d2;
+    color: #1976d2;
+}
+
+.dashboard-container .tab-btn.active {
+    background: #1976d2;
+    border-color: #1976d2;
+    color: white;
+}
+
+.tab-count {
+    background: rgba(0, 0, 0, 0.1);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+}
+
+.tab-btn.active .tab-count {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.tickets-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+}
+
+.empty-state {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px;
+    background: white;
+    border-radius: 8px;
+    border: 1px dashed #dee2e6;
+}
+
+.empty-icon {
+    font-size: 3rem;
+    display: block;
+    margin-bottom: 16px;
+}
+
+.empty-state h3 {
+    color: #343a40;
+    margin-bottom: 8px;
+}
+
+.empty-state p {
+    color: #6c757d;
+}

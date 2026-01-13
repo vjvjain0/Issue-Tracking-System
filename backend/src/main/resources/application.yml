@@ -1,0 +1,12 @@
+server:
+  port: 8080
+
+spring:
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/ticketing_system
+      database: ticketing_system
+
+jwt:
+  secret: mySecretKeyForJWTTokenGenerationMustBe256BitsLongForHS256Algorithm123456
+  expiration: 86400000

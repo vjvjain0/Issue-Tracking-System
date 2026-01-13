@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.egg-info/
+dist/
+build/
+target/
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Python
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+
+# Package manager
+package-lock.json
+yarn.lock
+poetry.lock
