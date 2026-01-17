@@ -10,6 +10,7 @@ A comprehensive issue tracking system built with Java Spring Boot 3 backend, Rea
 - Update ticket status (NOT_STARTED → IN_PROGRESS → RESOLVED/INVALID)
 - Add comments to tickets
 - View history of activities with timestamps
+- **Search tickets** by ID, title, or description (only their assigned tickets)
 
 ### Manager Features
 - View all tickets in the system
@@ -17,6 +18,15 @@ A comprehensive issue tracking system built with Java Spring Boot 3 backend, Rea
 - Manually assign tickets to agents
 - **Auto-assign tickets** based on workload and productivity (via Agents page)
 - View agent workload and productivity scores (via Agents page)
+- **Search all tickets** system-wide by ID, title, or description
+
+### Search Features
+- **Real-time autocomplete**: As you type in the search bar, results appear instantly
+- **Smart search**: Search by ticket ID, title, or description
+- **Role-based results**: Agents see only their assigned tickets, managers see all tickets
+- **Paginated results**: Full search results page with pagination
+- **Result count**: Shows total number of matching tickets
+- **Quick navigation**: Click autocomplete results to go directly to ticket details
 
 ### Auto-Assignment System
 - **Smart ticket distribution** based on agent workload and productivity
@@ -31,6 +41,7 @@ A comprehensive issue tracking system built with Java Spring Boot 3 backend, Rea
 - Each ticket has title, description, status, and assigned agent
 - Comments and activity history tracking
 - Tracks when tickets are closed for productivity scoring
+- **Ticket ID display** on cards and detail pages with copy functionality
 
 ## Tech Stack
 
@@ -104,6 +115,8 @@ The frontend will start on `http://localhost:3000`
 - `GET /api/tickets/{ticketId}` - Get ticket details
 - `PATCH /api/tickets/{ticketId}/status` - Update ticket status
 - `POST /api/tickets/{ticketId}/comments` - Add comment to ticket
+- `GET /api/tickets/search?query={query}&page={page}&size={size}` - Search tickets (paginated)
+- `GET /api/tickets/search/autocomplete?query={query}&limit={limit}` - Autocomplete search
 
 ### Tickets (Public - for Customer App)
 - `POST /api/tickets/create` - Create a new ticket
@@ -114,6 +127,8 @@ The frontend will start on `http://localhost:3000`
 - `PATCH /api/manager/tickets/{ticketId}/assign` - Assign ticket to agent
 - `GET /api/manager/agents` - Get all agents
 - `GET /api/manager/tickets/{ticketId}` - Get ticket details
+- `GET /api/manager/tickets/search?query={query}&page={page}&size={size}` - Search all tickets (paginated)
+- `GET /api/manager/tickets/search/autocomplete?query={query}&limit={limit}` - Autocomplete search
 
 ### Auto-Assignment (Manager only)
 - `POST /api/manager/auto-assign/all` - Auto-assign all unassigned tickets
@@ -156,6 +171,17 @@ curl -X PATCH http://localhost:8080/api/tickets/{ticketId}/status \
   -d '{
     "status": "IN_PROGRESS"
   }'
+```
+
+### Search Tickets (with auth token)
+```bash
+# Agent search (only assigned tickets)
+curl -X GET "http://localhost:8080/api/tickets/search?query=login&page=0&size=10" \
+  -H "Authorization: Bearer {token}"
+
+# Manager search (all tickets)
+curl -X GET "http://localhost:8080/api/manager/tickets/search?query=login&page=0&size=10" \
+  -H "Authorization: Bearer {token}"
 ```
 
 ## Project Structure

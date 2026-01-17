@@ -15,6 +15,7 @@ import TicketDetailPage from "./pages/TicketDetailPage";
 import ManagerDashboardPage from "./pages/ManagerDashboardPage";
 import UnassignedTicketsPage from "./pages/UnassignedTicketsPage";
 import AgentsPage from "./pages/AgentsPage";
+import SearchResultsPage from "./pages/SearchResultsPage";
 
 // Home redirect based on role
 const HomeRedirect = () => {
@@ -62,6 +63,16 @@ function App() {
             element={
               <ProtectedRoute>
                 <TicketDetailPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Search Results Route (shared by agents and managers) */}
+          <Route
+            path="/search"
+            element={
+              <ProtectedRoute>
+                <SearchResultsPage />
               </ProtectedRoute>
             }
           />

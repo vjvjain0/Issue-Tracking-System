@@ -12,6 +12,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/manager")
@@ -34,6 +35,29 @@ public class ManagerController {
     public ResponseEntity<List<TicketResponse>> getUnassignedTickets() {
         List<TicketResponse> tickets = ticketService.getUnassignedTickets();
         return ResponseEntity.ok(tickets);
+    }
+
+    // Search all tickets (paginated)
+    @GetMapping("/tickets/search")
+    public ResponseEntity<TicketSearchResponse> searchTickets(
+            @RequestParam String query,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        TicketSearchResponse response = ticketService.searchAllTickets(query, page, size);
+        return ResponseEntity.ok(response);
+    }
+
+    // Autocomplete search for manager (limited results for dropdown)
+    @GetMapping("/tickets/search/autocomplete")
+    public ResponseEntity<Map<String, Object>> autocompleteSearch(
+            @RequestParam String query,
+            @RequestParam(defaultValue = "5") int limit) {
+        List<TicketResponse> tickets = ticketService.autocompleteForManager(query, limit);
+        long totalCount = ticketService.getSearchCountForManager(query);
+        return ResponseEntity.ok(Map.of(
+            "tickets", tickets,
+            "totalCount", totalCount
+        ));
     }
 
     // Assign ticket to agent

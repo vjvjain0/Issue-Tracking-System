@@ -37,6 +37,11 @@ const TicketCard = ({ ticket, showAgent = false }) => {
         <span className="ticket-date">{formatDate(ticket.createdAt)}</span>
       </div>
 
+      <div className="ticket-id">
+        <span className="ticket-id-label">ID:</span>
+        <span className="ticket-id-value">{ticket.id}</span>
+      </div>
+
       <h3 className="ticket-title">{ticket.title}</h3>
 
       <p className="ticket-description">

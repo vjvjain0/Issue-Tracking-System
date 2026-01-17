@@ -16,6 +16,17 @@ const TicketDetailPage = () => {
   const [newComment, setNewComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [activeSection, setActiveSection] = useState('comments');
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyTicketId = async () => {
+    try {
+      await navigator.clipboard.writeText(ticket.id);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy ticket ID:', err);
+    }
+  };
 
   useEffect(() => {
     fetchTicket();
@@ -134,6 +145,17 @@ const TicketDetailPage = () => {
           <div className="ticket-main">
             <div className="ticket-header-section">
               <StatusBadge status={ticket.status} size="large" />
+              <div className="ticket-id-row">
+                <span className="ticket-id-label">Ticket ID:</span>
+                <code className="ticket-id-value">{ticket.id}</code>
+                <button 
+                  className={`copy-btn ${copied ? 'copied' : ''}`}
+                  onClick={handleCopyTicketId}
+                  title="Copy ticket ID"
+                >
+                  {copied ? '✓ Copied!' : '📋 Copy'}
+                </button>
+              </div>
               <h1 className="ticket-title">{ticket.title}</h1>
             </div>
 

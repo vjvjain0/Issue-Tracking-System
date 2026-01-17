@@ -1,0 +1,146 @@
+.search-results-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  color: #1976d2;
+  font-size: 0.95rem;
+  font-weight: 500;
+  padding: 8px 0;
+  margin-bottom: 20px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.back-btn:hover {
+  opacity: 0.8;
+}
+
+.search-results-header {
+  margin-bottom: 32px;
+}
+
+.search-results-header h1 {
+  font-size: 1.75rem;
+  color: #343a40;
+  margin-bottom: 8px;
+}
+
+.search-query {
+  color: #6c757d;
+  font-size: 1rem;
+  margin-bottom: 4px;
+}
+
+.search-query strong {
+  color: #343a40;
+}
+
+.results-count {
+  color: #1976d2;
+  font-size: 0.95rem;
+}
+
+.results-count strong {
+  font-weight: 600;
+}
+
+.error-banner {
+  background-color: #fce4ec;
+  color: #c62828;
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.loading-state {
+  text-align: center;
+  padding: 60px;
+  color: #6c757d;
+  font-size: 1.1rem;
+}
+
+.tickets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+  margin-bottom: 32px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px;
+  background: white;
+  border-radius: 8px;
+  border: 1px dashed #dee2e6;
+}
+
+.empty-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 16px;
+}
+
+.empty-state h3 {
+  color: #343a40;
+  margin-bottom: 8px;
+}
+
+.empty-state p {
+  color: #6c757d;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.pagination-btn {
+  padding: 8px 12px;
+  border: 1px solid #dee2e6;
+  background: white;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: #343a40;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  border-color: #1976d2;
+  color: #1976d2;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-btn.active {
+  background: #1976d2;
+  border-color: #1976d2;
+  color: white;
+}
+
+.pagination-number {
+  min-width: 40px;
+}
+
+.pagination-ellipsis {
+  color: #6c757d;
+  padding: 0 4px;
+}
+
+.page-info {
+  text-align: center;
+  color: #6c757d;
+  font-size: 0.9rem;
+}

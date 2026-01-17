@@ -11,9 +11,10 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AutoAssignResponse {
-    private int ticketsAssigned;
-    private int ticketsFailed;
-    private List<TicketResponse> assignedTickets;
-    private String message;
+public class TicketSearchResponse {
+    private List<TicketResponse> tickets;
+    private long totalCount;
+    private int page;
+    private int size;
+    private int totalPages;
 }

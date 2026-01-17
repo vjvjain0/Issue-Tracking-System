@@ -56,6 +56,56 @@
   margin-bottom: 12px;
 }
 
+.ticket-id-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.ticket-id-row .ticket-id-label {
+  font-size: 0.85rem;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.ticket-id-row .ticket-id-value {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  background-color: #f1f3f4;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: #5f6368;
+  border: 1px solid #e0e0e0;
+}
+
+.copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #1976d2;
+  background-color: #e3f2fd;
+  border: 1px solid #bbdefb;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.copy-btn:hover {
+  background-color: #bbdefb;
+  border-color: #90caf9;
+}
+
+.copy-btn.copied {
+  color: #2e7d32;
+  background-color: #e8f5e9;
+  border-color: #c8e6c9;
+}
+
 .ticket-title {
   font-size: 1.5rem;
   color: #343a40;

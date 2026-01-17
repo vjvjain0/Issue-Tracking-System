@@ -41,6 +41,31 @@ public class TicketController {
         return ResponseEntity.ok(tickets);
     }
 
+    // Search tickets for agent (paginated)
+    @GetMapping("/search")
+    public ResponseEntity<TicketSearchResponse> searchTickets(
+            @RequestParam String query,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        TicketSearchResponse response = ticketService.searchTicketsForAgent(principal.getId(), query, page, size);
+        return ResponseEntity.ok(response);
+    }
+
+    // Autocomplete search for agent (limited results for dropdown)
+    @GetMapping("/search/autocomplete")
+    public ResponseEntity<Map<String, Object>> autocompleteSearch(
+            @RequestParam String query,
+            @RequestParam(defaultValue = "5") int limit,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        List<TicketResponse> tickets = ticketService.autocompleteForAgent(principal.getId(), query, limit);
+        long totalCount = ticketService.getSearchCountForAgent(principal.getId(), query);
+        return ResponseEntity.ok(Map.of(
+            "tickets", tickets,
+            "totalCount", totalCount
+        ));
+    }
+
     // Get single ticket details
     @GetMapping("/{ticketId}")
     public ResponseEntity<TicketResponse> getTicketDetails(

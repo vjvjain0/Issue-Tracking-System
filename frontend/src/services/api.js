@@ -51,6 +51,11 @@ export const ticketAPI = {
   addComment: (ticketId, content) =>
     api.post(`/tickets/${ticketId}/comments`, { content }),
   createTicket: (data) => api.post("/tickets/create", data),
+  // Search endpoints for agents
+  search: (query, page = 0, size = 10) =>
+    api.get(`/tickets/search?query=${encodeURIComponent(query)}&page=${page}&size=${size}`),
+  autocomplete: (query, limit = 5) =>
+    api.get(`/tickets/search/autocomplete?query=${encodeURIComponent(query)}&limit=${limit}`),
 };
 
 // Manager API
@@ -61,6 +66,11 @@ export const managerAPI = {
     api.patch(`/manager/tickets/${ticketId}/assign`, { agentId }),
   getAllAgents: () => api.get("/manager/agents"),
   getTicketDetails: (ticketId) => api.get(`/manager/tickets/${ticketId}`),
+  // Search endpoints for managers
+  search: (query, page = 0, size = 10) =>
+    api.get(`/manager/tickets/search?query=${encodeURIComponent(query)}&page=${page}&size=${size}`),
+  autocomplete: (query, limit = 5) =>
+    api.get(`/manager/tickets/search/autocomplete?query=${encodeURIComponent(query)}&limit=${limit}`),
 };
 
 // Auto-Assignment API (Manager only)
