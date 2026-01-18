@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { ticketAPI, managerAPI } from '../services/api';
+import { ticketAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import TicketCard from '../components/TicketCard';
 import Navbar from '../components/Navbar';
@@ -32,8 +32,7 @@ const SearchResultsPage = () => {
   const fetchResults = async () => {
     try {
       setLoading(true);
-      const api = isManager() ? managerAPI : ticketAPI;
-      const response = await api.search(query, page, pageSize);
+      const response = await ticketAPI.search(query, page, pageSize);
       setTickets(response.data.tickets);
       setTotalCount(response.data.totalCount);
       setTotalPages(response.data.totalPages);

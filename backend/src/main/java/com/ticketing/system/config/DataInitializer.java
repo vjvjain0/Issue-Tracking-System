@@ -39,21 +39,21 @@ public class DataInitializer implements CommandLineRunner {
         log.info("Initializing test data...");
 
         // Create Manager
-        User manager = createUser("Sarah Manager", "manager@company.com", "manager123", Role.MANAGER);
+        User manager = createUser("Sarah Manager", "manager@company.com", "manager123", Role.MANAGER, "MGR-001", "+1-555-100-0001");
         log.info("Created Manager: {} / {}", manager.getEmail(), "manager123");
 
         // Create 5 Agents
         List<User> agents = new ArrayList<>();
         String[][] agentData = {
-            {"John Smith", "john.smith@company.com", "agent123"},
-            {"Emily Johnson", "emily.johnson@company.com", "agent123"},
-            {"Michael Brown", "michael.brown@company.com", "agent123"},
-            {"Jessica Davis", "jessica.davis@company.com", "agent123"},
-            {"David Wilson", "david.wilson@company.com", "agent123"}
+            {"John Smith", "john.smith@company.com", "agent123", "AGT-001", "+1-555-200-0001"},
+            {"Emily Johnson", "emily.johnson@company.com", "agent123", "AGT-002", "+1-555-200-0002"},
+            {"Michael Brown", "michael.brown@company.com", "agent123", "AGT-003", "+1-555-200-0003"},
+            {"Jessica Davis", "jessica.davis@company.com", "agent123", "AGT-004", "+1-555-200-0004"},
+            {"David Wilson", "david.wilson@company.com", "agent123", "AGT-005", "+1-555-200-0005"}
         };
 
         for (String[] data : agentData) {
-            User agent = createUser(data[0], data[1], data[2], Role.AGENT);
+            User agent = createUser(data[0], data[1], data[2], Role.AGENT, data[3], data[4]);
             agents.add(agent);
             log.info("Created Agent: {} / {}", agent.getEmail(), data[2]);
         }
@@ -143,12 +143,14 @@ public class DataInitializer implements CommandLineRunner {
         log.info("===========================================");
     }
 
-    private User createUser(String name, String email, String password, Role role) {
+    private User createUser(String name, String email, String password, Role role, String employeeId, String phoneNumber) {
         User user = User.builder()
                 .name(name)
                 .email(email)
                 .password(passwordEncoder.encode(password))
                 .role(role)
+                .employeeId(employeeId)
+                .phoneNumber(phoneNumber)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();

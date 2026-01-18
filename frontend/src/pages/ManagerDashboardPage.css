@@ -30,46 +30,54 @@
   text-align: center;
   padding: 60px;
   color: #6c757d;
+  font-size: 1.1rem;
 }
 
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 16px;
-  margin-bottom: 32px;
+/* Tab buttons - same style as Dashboard */
+.tabs-container {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+  padding-bottom: 8px;
 }
 
-.stat-card {
+.manager-container .tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
   background: white;
-  padding: 20px;
+  border: 1px solid #dee2e6;
   border-radius: 8px;
-  text-align: center;
-  cursor: pointer;
-  border: 2px solid transparent;
-  transition: all 0.2s;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.stat-card:hover {
-  border-color: #1976d2;
-}
-
-.stat-card.active {
-  border-color: #1976d2;
-  background: #f0f7ff;
-}
-
-.stat-count {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #1976d2;
-  display: block;
-}
-
-.stat-label {
-  font-size: 0.85rem;
-  color: #6c757d;
+  font-size: 0.9rem;
   font-weight: 500;
+  color: #6c757d;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.manager-container .tab-btn:hover {
+  border-color: #1976d2;
+  color: #1976d2;
+}
+
+.manager-container .tab-btn.active {
+  background: #1976d2;
+  border-color: #1976d2;
+  color: white;
+}
+
+.tab-count {
+  background: rgba(0, 0, 0, 0.1);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+}
+
+.tab-btn.active .tab-count {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .tickets-grid {
@@ -95,4 +103,9 @@
 
 .empty-state h3 {
   color: #343a40;
+  margin-bottom: 8px;
+}
+
+.empty-state p {
+  color: #6c757d;
 }

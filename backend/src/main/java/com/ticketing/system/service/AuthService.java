@@ -35,6 +35,8 @@ public class AuthService {
                 .name(user.getName())
                 .email(user.getEmail())
                 .role(user.getRole())
+                .employeeId(user.getEmployeeId())
+                .phoneNumber(user.getPhoneNumber())
                 .build();
     }
 }

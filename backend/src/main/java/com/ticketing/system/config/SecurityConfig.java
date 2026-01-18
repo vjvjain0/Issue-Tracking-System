@@ -41,9 +41,12 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/tickets/create").permitAll()
-                .requestMatchers("/api/manager/**").hasRole("MANAGER")
+                // Public endpoints
+                .requestMatchers("/api/v1/auth/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/tickets").permitAll()
+                // Agent management endpoints require MANAGER role (handled by @PreAuthorize)
+                .requestMatchers("/api/v1/agents/**").hasRole("MANAGER")
+                // All other endpoints require authentication
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

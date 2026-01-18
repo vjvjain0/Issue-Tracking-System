@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ticketAPI, managerAPI } from '../services/api';
+import { ticketAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import StatusBadge from '../components/StatusBadge';
@@ -9,7 +9,7 @@ import './TicketDetailPage.css';
 const TicketDetailPage = () => {
   const { ticketId } = useParams();
   const navigate = useNavigate();
-  const { isManager, isAgent } = useAuth();
+  const { isAgent } = useAuth();
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -35,9 +35,7 @@ const TicketDetailPage = () => {
   const fetchTicket = async () => {
     try {
       setLoading(true);
-      const response = isManager()
-        ? await managerAPI.getTicketDetails(ticketId)
-        : await ticketAPI.getTicketDetails(ticketId);
+      const response = await ticketAPI.getTicketDetails(ticketId);
       setTicket(response.data);
       setError('');
     } catch (err) {

@@ -206,7 +206,8 @@
   margin-bottom: 2px;
 }
 
-.search-result-desc {
+.search-result-desc,
+.search-result-customer {
   font-size: 0.8rem;
   color: #6c757d;
   line-height: 1.3;
@@ -236,25 +237,53 @@
 .navbar-user {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   flex-shrink: 0;
 }
 
-.user-info {
+.user-info-clickable {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.user-info-clickable:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.user-details {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
 }
 
 .user-name {
   font-weight: 500;
   font-size: 0.9rem;
+  line-height: 1.2;
 }
 
 .user-role {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   opacity: 0.8;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .logout-btn {
@@ -285,5 +314,9 @@
     max-width: 100%;
     width: 100%;
     margin-top: 12px;
+  }
+
+  .user-details {
+    display: none;
   }
 }

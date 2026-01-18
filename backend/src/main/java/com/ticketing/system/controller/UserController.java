@@ -9,7 +9,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
 public class UserController {
 
@@ -19,5 +19,11 @@ public class UserController {
     public ResponseEntity<UserResponse> getCurrentUser(@AuthenticationPrincipal UserPrincipal principal) {
         UserResponse user = userService.getCurrentUser(principal.getId());
         return ResponseEntity.ok(user);
+    }
+
+    @PostMapping("/heartbeat")
+    public ResponseEntity<Void> heartbeat(@AuthenticationPrincipal UserPrincipal principal) {
+        userService.updateHeartbeat(principal.getId());
+        return ResponseEntity.ok().build();
     }
 }

@@ -104,46 +104,50 @@ The frontend will start on `http://localhost:3000`
 | Jessica Davis | jessica.davis@company.com | agent123 |
 | David Wilson | david.wilson@company.com | agent123 |
 
-## API Endpoints
+## API Endpoints (v1)
+
+All endpoints use the `/api/v1` prefix.
 
 ### Authentication
-- `POST /api/auth/login` - Login with email and password
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/api/v1/auth/login` | Login with email and password | No |
 
-### Tickets (Agents)
-- `GET /api/tickets/my-tickets` - Get all tickets assigned to the logged-in agent
-- `GET /api/tickets/my-tickets/grouped` - Get tickets grouped by status
-- `GET /api/tickets/{ticketId}` - Get ticket details
-- `PATCH /api/tickets/{ticketId}/status` - Update ticket status
-- `POST /api/tickets/{ticketId}/comments` - Add comment to ticket
-- `GET /api/tickets/search?query={query}&page={page}&size={size}` - Search tickets (paginated)
-- `GET /api/tickets/search/autocomplete?query={query}&limit={limit}` - Autocomplete search
+### Ticket Management
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/api/v1/tickets` | Create a new ticket | No (public) |
+| GET | `/api/v1/tickets` | Get all tickets (managers) or assigned tickets (agents) | Yes |
+| GET | `/api/v1/tickets?assigned=false` | Get unassigned tickets | Yes (Manager) |
+| GET | `/api/v1/tickets?grouped=true` | Get tickets grouped by status | Yes (Agent) |
+| GET | `/api/v1/tickets?query={searchText}` | Search tickets | Yes |
+| GET | `/api/v1/tickets/autocomplete?query={searchText}` | Autocomplete search | Yes |
+| GET | `/api/v1/tickets/{ticketId}` | Get ticket details | Yes |
+| PATCH | `/api/v1/tickets/{ticketId}/status` | Update ticket status | Yes (Agent) |
+| POST | `/api/v1/tickets/{ticketId}/comments` | Add comment to ticket | Yes (Agent) |
+| PATCH | `/api/v1/tickets/{ticketId}/assign` | Assign ticket to agent | Yes (Manager) |
+| POST | `/api/v1/tickets/auto-assign` | Auto-assign all unassigned tickets | Yes (Manager) |
 
-### Tickets (Public - for Customer App)
-- `POST /api/tickets/create` - Create a new ticket
+### User Management
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/api/v1/users/me` | Get current user info | Yes |
 
-### Manager
-- `GET /api/manager/tickets` - Get all tickets
-- `GET /api/manager/tickets/unassigned` - Get unassigned tickets
-- `PATCH /api/manager/tickets/{ticketId}/assign` - Assign ticket to agent
-- `GET /api/manager/agents` - Get all agents
-- `GET /api/manager/tickets/{ticketId}` - Get ticket details
-- `GET /api/manager/tickets/search?query={query}&page={page}&size={size}` - Search all tickets (paginated)
-- `GET /api/manager/tickets/search/autocomplete?query={query}&limit={limit}` - Autocomplete search
-
-### Auto-Assignment (Manager only)
-- `POST /api/manager/auto-assign/all` - Auto-assign all unassigned tickets
-- `GET /api/manager/auto-assign/workloads` - Get agent workload information
-- `GET /api/manager/auto-assign/stats` - Get assignment statistics
-- `GET /api/manager/auto-assign/scores/current` - Get current week scores
-- `GET /api/manager/auto-assign/scores/history?weeks=4` - Get score history
-
-> **Note:** Scores are calculated automatically via a scheduled cron job every Monday at 1:00 AM.
+### Agent Management (Manager only)
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/api/v1/agents` | Get all agents | Yes (Manager) |
+| GET | `/api/v1/agents/workloads` | Get all agent workloads | Yes (Manager) |
+| GET | `/api/v1/agents/{agentId}/workload` | Get specific agent workload | Yes (Manager) |
+| GET | `/api/v1/agents/scores` | Get all agent scores (current week) | Yes (Manager) |
+| GET | `/api/v1/agents/scores?weeks={n}` | Get agent scores for last n weeks | Yes (Manager) |
+| GET | `/api/v1/agents/{agentId}/score` | Get specific agent's latest score | Yes (Manager) |
 
 ## Sample API Calls
 
 ### Create Ticket (Customer App Integration)
 ```bash
-curl -X POST http://localhost:8080/api/tickets/create \
+curl -X POST http://localhost:8080/api/v1/tickets \
   -H "Content-Type: application/json" \
   -d '{
     "title": "Cannot login to my account",
@@ -155,7 +159,7 @@ curl -X POST http://localhost:8080/api/tickets/create \
 
 ### Login
 ```bash
-curl -X POST http://localhost:8080/api/auth/login \
+curl -X POST http://localhost:8080/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "john.smith@company.com",
@@ -163,9 +167,21 @@ curl -X POST http://localhost:8080/api/auth/login \
   }'
 ```
 
-### Update Ticket Status (with auth token)
+### Get All Tickets (as manager)
 ```bash
-curl -X PATCH http://localhost:8080/api/tickets/{ticketId}/status \
+curl -X GET http://localhost:8080/api/v1/tickets \
+  -H "Authorization: Bearer {token}"
+```
+
+### Get Unassigned Tickets (as manager)
+```bash
+curl -X GET "http://localhost:8080/api/v1/tickets?assigned=false" \
+  -H "Authorization: Bearer {token}"
+```
+
+### Update Ticket Status
+```bash
+curl -X PATCH http://localhost:8080/api/v1/tickets/{ticketId}/status \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer {token}" \
   -d '{
@@ -173,38 +189,59 @@ curl -X PATCH http://localhost:8080/api/tickets/{ticketId}/status \
   }'
 ```
 
-### Search Tickets (with auth token)
+### Assign Ticket to Agent
 ```bash
-# Agent search (only assigned tickets)
-curl -X GET "http://localhost:8080/api/tickets/search?query=login&page=0&size=10" \
-  -H "Authorization: Bearer {token}"
+curl -X PATCH http://localhost:8080/api/v1/tickets/{ticketId}/assign \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer {token}" \
+  -d '{
+    "agentId": "{agentId}"
+  }'
+```
 
-# Manager search (all tickets)
-curl -X GET "http://localhost:8080/api/manager/tickets/search?query=login&page=0&size=10" \
+### Search Tickets
+```bash
+curl -X GET "http://localhost:8080/api/v1/tickets?query=login&page=0&size=10" \
+  -H "Authorization: Bearer {token}"
+```
+
+### Auto-Assign All Unassigned Tickets
+```bash
+curl -X POST http://localhost:8080/api/v1/tickets/auto-assign \
+  -H "Authorization: Bearer {token}"
+```
+
+### Get Agent Workloads
+```bash
+curl -X GET http://localhost:8080/api/v1/agents/workloads \
   -H "Authorization: Bearer {token}"
 ```
 
 ## Project Structure
 
 ```
-Ticketing System/
+Issue Tracking System/
 ├── backend/
 │   ├── src/main/java/com/ticketing/system/
 │   │   ├── config/          # Configuration classes
 │   │   ├── controller/      # REST controllers
-│   │   ├── dto/            # Data transfer objects
-│   │   ├── exception/      # Exception handling
-│   │   ├── model/          # MongoDB documents
-│   │   ├── repository/     # MongoDB repositories
-│   │   ├── security/       # JWT security
-│   │   └── service/        # Business logic
+│   │   │   ├── AgentController.java    # /api/v1/agents/*
+│   │   │   ├── AuthController.java     # /api/v1/auth/*
+│   │   │   ├── TicketController.java   # /api/v1/tickets/*
+│   │   │   └── UserController.java     # /api/v1/users/*
+│   │   ├── dto/             # Data transfer objects
+│   │   ├── exception/       # Exception handling
+│   │   ├── model/           # MongoDB documents
+│   │   ├── repository/      # MongoDB repositories
+│   │   ├── security/        # JWT security
+│   │   └── service/         # Business logic
 │   └── pom.xml
 ├── frontend/
 │   ├── src/
-│   │   ├── components/     # Reusable components
-│   │   ├── context/        # React context
-│   │   ├── pages/          # Page components
-│   │   ├── services/       # API services
+│   │   ├── components/      # Reusable components
+│   │   ├── context/         # React context
+│   │   ├── pages/           # Page components
+│   │   ├── services/        # API services
 │   │   └── App.js
 │   └── package.json
 └── README.md

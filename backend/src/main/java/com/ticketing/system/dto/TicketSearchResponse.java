@@ -12,7 +12,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class TicketSearchResponse {
-    private List<TicketResponse> tickets;
+    private List<TicketSummaryResponse> tickets;
     private long totalCount;
     private int page;
     private int size;

@@ -43,7 +43,6 @@ public class TicketService {
                 .autoAssigned(false)
                 .build();
 
-        // Add creation activity
         Activity activity = Activity.builder()
                 .id(UUID.randomUUID().toString())
                 .userId("SYSTEM")
@@ -75,12 +74,11 @@ public class TicketService {
         ticket.setAssignedAgentName(agent.getName());
         ticket.setUpdatedAt(LocalDateTime.now());
 
-        // Add assignment activity
         String details = previousAgent == null
                 ? "Ticket assigned to " + agent.getName()
                 : "Ticket reassigned from " + previousAgent + " to " + agent.getName();
 
-        Activity activity = Activity.builder()
+        Activity activityLog = Activity.builder()
                 .id(UUID.randomUUID().toString())
                 .userId(managerId)
                 .userName(manager.getName())
@@ -88,7 +86,7 @@ public class TicketService {
                 .details(details)
                 .timestamp(LocalDateTime.now())
                 .build();
-        ticket.getActivities().add(activity);
+        ticket.getActivities().add(activityLog);
 
         Ticket savedTicket = ticketRepository.save(ticket);
         return mapToTicketResponse(savedTicket);
@@ -97,12 +95,10 @@ public class TicketService {
     public TicketResponse updateStatus(String ticketId, UpdateStatusRequest request, String agentId) {
         Ticket ticket = getTicketById(ticketId);
 
-        // Verify the agent is assigned to this ticket
         if (!agentId.equals(ticket.getAssignedAgentId())) {
             throw new ApiException("You are not authorized to update this ticket", HttpStatus.FORBIDDEN);
         }
 
-        // Validate status transition
         validateStatusTransition(ticket.getStatus(), request.getStatus());
 
         User agent = userRepository.findById(agentId)
@@ -112,13 +108,11 @@ public class TicketService {
         ticket.setStatus(request.getStatus());
         ticket.setUpdatedAt(LocalDateTime.now());
 
-        // Set closedAt timestamp if ticket is being closed (RESOLVED or INVALID)
         if (request.getStatus() == TicketStatus.RESOLVED || request.getStatus() == TicketStatus.INVALID) {
             ticket.setClosedAt(LocalDateTime.now());
         }
 
-        // Add status change activity
-        Activity activity = Activity.builder()
+        Activity activityLog = Activity.builder()
                 .id(UUID.randomUUID().toString())
                 .userId(agentId)
                 .userName(agent.getName())
@@ -126,7 +120,7 @@ public class TicketService {
                 .details("Status changed from " + previousStatus + " to " + request.getStatus())
                 .timestamp(LocalDateTime.now())
                 .build();
-        ticket.getActivities().add(activity);
+        ticket.getActivities().add(activityLog);
 
         Ticket savedTicket = ticketRepository.save(ticket);
         return mapToTicketResponse(savedTicket);
@@ -154,7 +148,6 @@ public class TicketService {
     public TicketResponse addComment(String ticketId, AddCommentRequest request, String userId) {
         Ticket ticket = getTicketById(ticketId);
 
-        // Verify the user is assigned to this ticket
         if (!userId.equals(ticket.getAssignedAgentId())) {
             throw new ApiException("You are not authorized to comment on this ticket", HttpStatus.FORBIDDEN);
         }
@@ -173,8 +166,7 @@ public class TicketService {
         ticket.getComments().add(comment);
         ticket.setUpdatedAt(LocalDateTime.now());
 
-        // Add comment activity
-        Activity activity = Activity.builder()
+        Activity activityLog = Activity.builder()
                 .id(UUID.randomUUID().toString())
                 .userId(userId)
                 .userName(user.getName())
@@ -184,38 +176,15 @@ public class TicketService {
                         : request.getContent()))
                 .timestamp(LocalDateTime.now())
                 .build();
-        ticket.getActivities().add(activity);
+        ticket.getActivities().add(activityLog);
 
         Ticket savedTicket = ticketRepository.save(ticket);
         return mapToTicketResponse(savedTicket);
     }
 
-    public List<TicketResponse> getTicketsForAgent(String agentId) {
-        return ticketRepository.findByAssignedAgentId(agentId).stream()
-                .map(this::mapToTicketResponse)
-                .collect(Collectors.toList());
-    }
-
-    public Map<String, List<TicketResponse>> getTicketsGroupedByStatus(String agentId) {
-        List<Ticket> tickets = ticketRepository.findByAssignedAgentId(agentId);
-
-        Map<String, List<TicketResponse>> grouped = new LinkedHashMap<>();
-        grouped.put("NOT_STARTED", new ArrayList<>());
-        grouped.put("IN_PROGRESS", new ArrayList<>());
-        grouped.put("RESOLVED", new ArrayList<>());
-        grouped.put("INVALID", new ArrayList<>());
-
-        for (Ticket ticket : tickets) {
-            grouped.get(ticket.getStatus().name()).add(mapToTicketResponse(ticket));
-        }
-
-        return grouped;
-    }
-
     public TicketResponse getTicketDetails(String ticketId, String userId) {
         Ticket ticket = getTicketById(ticketId);
 
-        // Check if user is assigned agent or manager
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ApiException("User not found", HttpStatus.NOT_FOUND));
 
@@ -226,37 +195,193 @@ public class TicketService {
         return mapToTicketResponse(ticket);
     }
 
-    public List<TicketResponse> getAllTickets() {
+    // ==================== Summary Methods for List Views ====================
+
+    public List<TicketSummaryResponse> getAllTicketSummaries() {
         return ticketRepository.findAll().stream()
-                .map(this::mapToTicketResponse)
+                .map(this::mapToTicketSummary)
                 .collect(Collectors.toList());
     }
 
-    public List<TicketResponse> getUnassignedTickets() {
+    public List<TicketSummaryResponse> getUnassignedTicketSummaries() {
         return ticketRepository.findByAssignedAgentIdIsNull().stream()
-                .map(this::mapToTicketResponse)
+                .map(this::mapToTicketSummary)
                 .collect(Collectors.toList());
     }
 
-    // Search tickets for agents (only their assigned tickets) with fuzzy matching
-    public TicketSearchResponse searchTicketsForAgent(String agentId, String query, int page, int size) {
+    public List<TicketSummaryResponse> getTicketSummariesForAgent(String agentId) {
+        return ticketRepository.findByAssignedAgentId(agentId).stream()
+                .map(this::mapToTicketSummary)
+                .collect(Collectors.toList());
+    }
+
+    public Map<String, List<TicketSummaryResponse>> getTicketSummariesGroupedByStatus(String agentId) {
+        List<Ticket> tickets = ticketRepository.findByAssignedAgentId(agentId);
+
+        Map<String, List<TicketSummaryResponse>> grouped = new LinkedHashMap<>();
+        grouped.put("NOT_STARTED", new ArrayList<>());
+        grouped.put("IN_PROGRESS", new ArrayList<>());
+        grouped.put("RESOLVED", new ArrayList<>());
+        grouped.put("INVALID", new ArrayList<>());
+
+        for (Ticket ticket : tickets) {
+            grouped.get(ticket.getStatus().name()).add(mapToTicketSummary(ticket));
+        }
+
+        return grouped;
+    }
+
+    public List<TicketSummaryResponse> autocompleteForAgentSummary(String agentId, String query, int limit) {
         String trimmedQuery = query.trim();
         String escapedQuery = escapeRegex(trimmedQuery);
-        Pageable pageable = PageRequest.of(0, Integer.MAX_VALUE, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Pageable pageable = PageRequest.of(0, limit * 2, Sort.by(Sort.Direction.DESC, "createdAt"));
         
-        // Collect all matching tickets
         Set<String> seenIds = new HashSet<>();
         List<Ticket> exactMatches = new ArrayList<>();
         List<Ticket> fuzzyMatches = new ArrayList<>();
         
-        // 1. First, check for exact ID match
         ticketRepository.findByIdAndAssignedAgentId(trimmedQuery, agentId)
                 .ifPresent(ticket -> {
                     exactMatches.add(ticket);
                     seenIds.add(ticket.getId());
                 });
         
-        // 2. Check for partial ID match (if query looks like part of an ID)
+        if (isValidIdPattern(trimmedQuery) && exactMatches.size() < limit) {
+            List<Ticket> agentTickets = ticketRepository.findByAssignedAgentId(agentId);
+            for (Ticket ticket : agentTickets) {
+                if (!seenIds.contains(ticket.getId()) && 
+                    ticket.getId().toLowerCase().contains(trimmedQuery.toLowerCase())) {
+                    exactMatches.add(ticket);
+                    seenIds.add(ticket.getId());
+                    if (exactMatches.size() >= limit) break;
+                }
+            }
+        }
+        
+        if (exactMatches.size() < limit) {
+            List<Ticket> textResults = ticketRepository.searchByAgentIdTextFields(agentId, escapedQuery, pageable);
+            for (Ticket ticket : textResults) {
+                if (!seenIds.contains(ticket.getId())) {
+                    exactMatches.add(ticket);
+                    seenIds.add(ticket.getId());
+                    if (exactMatches.size() >= limit) break;
+                }
+            }
+        }
+        
+        if (exactMatches.size() < limit) {
+            double fuzzyThreshold = FuzzySearchUtil.getDefaultThreshold();
+            List<Ticket> agentTickets = ticketRepository.findByAssignedAgentId(agentId);
+            for (Ticket ticket : agentTickets) {
+                if (!seenIds.contains(ticket.getId())) {
+                    boolean titleMatch = FuzzySearchUtil.fuzzyMatches(trimmedQuery, ticket.getTitle(), fuzzyThreshold);
+                    boolean descMatch = FuzzySearchUtil.fuzzyMatches(trimmedQuery, ticket.getDescription(), fuzzyThreshold);
+                    if (titleMatch || descMatch) {
+                        fuzzyMatches.add(ticket);
+                        seenIds.add(ticket.getId());
+                    }
+                }
+            }
+            
+            fuzzyMatches.sort((a, b) -> {
+                double scoreA = FuzzySearchUtil.calculateRelevanceScore(trimmedQuery, a.getTitle(), a.getDescription());
+                double scoreB = FuzzySearchUtil.calculateRelevanceScore(trimmedQuery, b.getTitle(), b.getDescription());
+                return Double.compare(scoreB, scoreA);
+            });
+        }
+        
+        List<Ticket> allResults = new ArrayList<>(exactMatches);
+        allResults.addAll(fuzzyMatches);
+        
+        return allResults.stream()
+                .limit(limit)
+                .map(this::mapToTicketSummary)
+                .collect(Collectors.toList());
+    }
+
+    public List<TicketSummaryResponse> autocompleteForManagerSummary(String query, int limit) {
+        String trimmedQuery = query.trim();
+        String escapedQuery = escapeRegex(trimmedQuery);
+        Pageable pageable = PageRequest.of(0, limit * 2, Sort.by(Sort.Direction.DESC, "createdAt"));
+        
+        Set<String> seenIds = new HashSet<>();
+        List<Ticket> exactMatches = new ArrayList<>();
+        List<Ticket> fuzzyMatches = new ArrayList<>();
+        
+        ticketRepository.findById(trimmedQuery)
+                .ifPresent(ticket -> {
+                    exactMatches.add(ticket);
+                    seenIds.add(ticket.getId());
+                });
+        
+        if (isValidIdPattern(trimmedQuery) && exactMatches.size() < limit) {
+            List<Ticket> allTickets = ticketRepository.findAll();
+            for (Ticket ticket : allTickets) {
+                if (!seenIds.contains(ticket.getId()) && 
+                    ticket.getId().toLowerCase().contains(trimmedQuery.toLowerCase())) {
+                    exactMatches.add(ticket);
+                    seenIds.add(ticket.getId());
+                    if (exactMatches.size() >= limit) break;
+                }
+            }
+        }
+        
+        if (exactMatches.size() < limit) {
+            List<Ticket> textResults = ticketRepository.searchAllTicketsTextFields(escapedQuery, pageable);
+            for (Ticket ticket : textResults) {
+                if (!seenIds.contains(ticket.getId())) {
+                    exactMatches.add(ticket);
+                    seenIds.add(ticket.getId());
+                    if (exactMatches.size() >= limit) break;
+                }
+            }
+        }
+        
+        if (exactMatches.size() < limit) {
+            double fuzzyThreshold = FuzzySearchUtil.getDefaultThreshold();
+            List<Ticket> allTickets = ticketRepository.findAll();
+            for (Ticket ticket : allTickets) {
+                if (!seenIds.contains(ticket.getId())) {
+                    boolean titleMatch = FuzzySearchUtil.fuzzyMatches(trimmedQuery, ticket.getTitle(), fuzzyThreshold);
+                    boolean descMatch = FuzzySearchUtil.fuzzyMatches(trimmedQuery, ticket.getDescription(), fuzzyThreshold);
+                    if (titleMatch || descMatch) {
+                        fuzzyMatches.add(ticket);
+                        seenIds.add(ticket.getId());
+                    }
+                }
+            }
+            
+            fuzzyMatches.sort((a, b) -> {
+                double scoreA = FuzzySearchUtil.calculateRelevanceScore(trimmedQuery, a.getTitle(), a.getDescription());
+                double scoreB = FuzzySearchUtil.calculateRelevanceScore(trimmedQuery, b.getTitle(), b.getDescription());
+                return Double.compare(scoreB, scoreA);
+            });
+        }
+        
+        List<Ticket> allResults = new ArrayList<>(exactMatches);
+        allResults.addAll(fuzzyMatches);
+        
+        return allResults.stream()
+                .limit(limit)
+                .map(this::mapToTicketSummary)
+                .collect(Collectors.toList());
+    }
+
+    public TicketSearchResponse searchTicketsForAgent(String agentId, String query, int page, int size) {
+        String trimmedQuery = query.trim();
+        String escapedQuery = escapeRegex(trimmedQuery);
+        Pageable pageable = PageRequest.of(0, Integer.MAX_VALUE, Sort.by(Sort.Direction.DESC, "createdAt"));
+        
+        Set<String> seenIds = new HashSet<>();
+        List<Ticket> exactMatches = new ArrayList<>();
+        List<Ticket> fuzzyMatches = new ArrayList<>();
+        
+        ticketRepository.findByIdAndAssignedAgentId(trimmedQuery, agentId)
+                .ifPresent(ticket -> {
+                    exactMatches.add(ticket);
+                    seenIds.add(ticket.getId());
+                });
+        
         if (isValidIdPattern(trimmedQuery)) {
             List<Ticket> agentTickets = ticketRepository.findByAssignedAgentId(agentId);
             for (Ticket ticket : agentTickets) {
@@ -268,7 +393,6 @@ public class TicketService {
             }
         }
         
-        // 3. Search by title and description (exact regex match)
         List<Ticket> textResults = ticketRepository.searchByAgentIdTextFields(agentId, escapedQuery, pageable);
         for (Ticket ticket : textResults) {
             if (!seenIds.contains(ticket.getId())) {
@@ -277,7 +401,6 @@ public class TicketService {
             }
         }
         
-        // 4. Fuzzy search - check remaining tickets for fuzzy matches
         double fuzzyThreshold = FuzzySearchUtil.getDefaultThreshold();
         List<Ticket> agentTickets = ticketRepository.findByAssignedAgentId(agentId);
         for (Ticket ticket : agentTickets) {
@@ -291,19 +414,16 @@ public class TicketService {
             }
         }
         
-        // Sort fuzzy matches by relevance score
         fuzzyMatches.sort((a, b) -> {
             double scoreA = FuzzySearchUtil.calculateRelevanceScore(trimmedQuery, a.getTitle(), a.getDescription());
             double scoreB = FuzzySearchUtil.calculateRelevanceScore(trimmedQuery, b.getTitle(), b.getDescription());
             return Double.compare(scoreB, scoreA);
         });
         
-        // Combine results: exact matches first (sorted by date), then fuzzy matches (sorted by relevance)
         exactMatches.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
         List<Ticket> allResults = new ArrayList<>(exactMatches);
         allResults.addAll(fuzzyMatches);
         
-        // Apply pagination
         long totalCount = allResults.size();
         int totalPages = (int) Math.ceil((double) totalCount / size);
         int fromIndex = page * size;
@@ -314,7 +434,7 @@ public class TicketService {
                 : new ArrayList<>();
 
         return TicketSearchResponse.builder()
-                .tickets(pagedResults.stream().map(this::mapToTicketResponse).collect(Collectors.toList()))
+                .tickets(pagedResults.stream().map(this::mapToTicketSummary).collect(Collectors.toList()))
                 .totalCount(totalCount)
                 .page(page)
                 .size(size)
@@ -322,25 +442,21 @@ public class TicketService {
                 .build();
     }
 
-    // Search all tickets for managers with fuzzy matching
     public TicketSearchResponse searchAllTickets(String query, int page, int size) {
         String trimmedQuery = query.trim();
         String escapedQuery = escapeRegex(trimmedQuery);
         Pageable pageable = PageRequest.of(0, Integer.MAX_VALUE, Sort.by(Sort.Direction.DESC, "createdAt"));
         
-        // Collect all matching tickets
         Set<String> seenIds = new HashSet<>();
         List<Ticket> exactMatches = new ArrayList<>();
         List<Ticket> fuzzyMatches = new ArrayList<>();
         
-        // 1. First, check for exact ID match
         ticketRepository.findById(trimmedQuery)
                 .ifPresent(ticket -> {
                     exactMatches.add(ticket);
                     seenIds.add(ticket.getId());
                 });
         
-        // 2. Check for partial ID match (if query looks like part of an ID)
         if (isValidIdPattern(trimmedQuery)) {
             List<Ticket> allTickets = ticketRepository.findAll();
             for (Ticket ticket : allTickets) {
@@ -352,7 +468,6 @@ public class TicketService {
             }
         }
         
-        // 3. Search by title and description (exact regex match)
         List<Ticket> textResults = ticketRepository.searchAllTicketsTextFields(escapedQuery, pageable);
         for (Ticket ticket : textResults) {
             if (!seenIds.contains(ticket.getId())) {
@@ -361,7 +476,6 @@ public class TicketService {
             }
         }
         
-        // 4. Fuzzy search - check remaining tickets for fuzzy matches
         double fuzzyThreshold = FuzzySearchUtil.getDefaultThreshold();
         List<Ticket> allTickets = ticketRepository.findAll();
         for (Ticket ticket : allTickets) {
@@ -375,19 +489,16 @@ public class TicketService {
             }
         }
         
-        // Sort fuzzy matches by relevance score
         fuzzyMatches.sort((a, b) -> {
             double scoreA = FuzzySearchUtil.calculateRelevanceScore(trimmedQuery, a.getTitle(), a.getDescription());
             double scoreB = FuzzySearchUtil.calculateRelevanceScore(trimmedQuery, b.getTitle(), b.getDescription());
             return Double.compare(scoreB, scoreA);
         });
         
-        // Combine results: exact matches first, then fuzzy matches
         exactMatches.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
         List<Ticket> allResults = new ArrayList<>(exactMatches);
         allResults.addAll(fuzzyMatches);
         
-        // Apply pagination
         long totalCount = allResults.size();
         int totalPages = (int) Math.ceil((double) totalCount / size);
         int fromIndex = page * size;
@@ -398,7 +509,7 @@ public class TicketService {
                 : new ArrayList<>();
 
         return TicketSearchResponse.builder()
-                .tickets(pagedResults.stream().map(this::mapToTicketResponse).collect(Collectors.toList()))
+                .tickets(pagedResults.stream().map(this::mapToTicketSummary).collect(Collectors.toList()))
                 .totalCount(totalCount)
                 .page(page)
                 .size(size)
@@ -406,159 +517,6 @@ public class TicketService {
                 .build();
     }
 
-    // Autocomplete search for agents (limited results) with fuzzy matching
-    public List<TicketResponse> autocompleteForAgent(String agentId, String query, int limit) {
-        String trimmedQuery = query.trim();
-        String escapedQuery = escapeRegex(trimmedQuery);
-        Pageable pageable = PageRequest.of(0, limit * 2, Sort.by(Sort.Direction.DESC, "createdAt"));
-        
-        // Collect all matching tickets
-        Set<String> seenIds = new HashSet<>();
-        List<Ticket> exactMatches = new ArrayList<>();
-        List<Ticket> fuzzyMatches = new ArrayList<>();
-        
-        // 1. First, check for exact ID match
-        ticketRepository.findByIdAndAssignedAgentId(trimmedQuery, agentId)
-                .ifPresent(ticket -> {
-                    exactMatches.add(ticket);
-                    seenIds.add(ticket.getId());
-                });
-        
-        // 2. Check for partial ID match
-        if (isValidIdPattern(trimmedQuery) && exactMatches.size() < limit) {
-            List<Ticket> agentTickets = ticketRepository.findByAssignedAgentId(agentId);
-            for (Ticket ticket : agentTickets) {
-                if (!seenIds.contains(ticket.getId()) && 
-                    ticket.getId().toLowerCase().contains(trimmedQuery.toLowerCase())) {
-                    exactMatches.add(ticket);
-                    seenIds.add(ticket.getId());
-                    if (exactMatches.size() >= limit) break;
-                }
-            }
-        }
-        
-        // 3. Search by title and description
-        if (exactMatches.size() < limit) {
-            List<Ticket> textResults = ticketRepository.searchByAgentIdTextFields(agentId, escapedQuery, pageable);
-            for (Ticket ticket : textResults) {
-                if (!seenIds.contains(ticket.getId())) {
-                    exactMatches.add(ticket);
-                    seenIds.add(ticket.getId());
-                    if (exactMatches.size() >= limit) break;
-                }
-            }
-        }
-        
-        // 4. Fuzzy search if we still need more results
-        if (exactMatches.size() < limit) {
-            double fuzzyThreshold = FuzzySearchUtil.getDefaultThreshold();
-            List<Ticket> agentTickets = ticketRepository.findByAssignedAgentId(agentId);
-            for (Ticket ticket : agentTickets) {
-                if (!seenIds.contains(ticket.getId())) {
-                    boolean titleMatch = FuzzySearchUtil.fuzzyMatches(trimmedQuery, ticket.getTitle(), fuzzyThreshold);
-                    boolean descMatch = FuzzySearchUtil.fuzzyMatches(trimmedQuery, ticket.getDescription(), fuzzyThreshold);
-                    if (titleMatch || descMatch) {
-                        fuzzyMatches.add(ticket);
-                        seenIds.add(ticket.getId());
-                    }
-                }
-            }
-            
-            // Sort fuzzy matches by relevance
-            fuzzyMatches.sort((a, b) -> {
-                double scoreA = FuzzySearchUtil.calculateRelevanceScore(trimmedQuery, a.getTitle(), a.getDescription());
-                double scoreB = FuzzySearchUtil.calculateRelevanceScore(trimmedQuery, b.getTitle(), b.getDescription());
-                return Double.compare(scoreB, scoreA);
-            });
-        }
-        
-        // Combine and limit results
-        List<Ticket> allResults = new ArrayList<>(exactMatches);
-        allResults.addAll(fuzzyMatches);
-        
-        return allResults.stream()
-                .limit(limit)
-                .map(this::mapToTicketResponse)
-                .collect(Collectors.toList());
-    }
-
-    // Autocomplete search for managers (limited results) with fuzzy matching
-    public List<TicketResponse> autocompleteForManager(String query, int limit) {
-        String trimmedQuery = query.trim();
-        String escapedQuery = escapeRegex(trimmedQuery);
-        Pageable pageable = PageRequest.of(0, limit * 2, Sort.by(Sort.Direction.DESC, "createdAt"));
-        
-        // Collect all matching tickets
-        Set<String> seenIds = new HashSet<>();
-        List<Ticket> exactMatches = new ArrayList<>();
-        List<Ticket> fuzzyMatches = new ArrayList<>();
-        
-        // 1. First, check for exact ID match
-        ticketRepository.findById(trimmedQuery)
-                .ifPresent(ticket -> {
-                    exactMatches.add(ticket);
-                    seenIds.add(ticket.getId());
-                });
-        
-        // 2. Check for partial ID match
-        if (isValidIdPattern(trimmedQuery) && exactMatches.size() < limit) {
-            List<Ticket> allTickets = ticketRepository.findAll();
-            for (Ticket ticket : allTickets) {
-                if (!seenIds.contains(ticket.getId()) && 
-                    ticket.getId().toLowerCase().contains(trimmedQuery.toLowerCase())) {
-                    exactMatches.add(ticket);
-                    seenIds.add(ticket.getId());
-                    if (exactMatches.size() >= limit) break;
-                }
-            }
-        }
-        
-        // 3. Search by title and description
-        if (exactMatches.size() < limit) {
-            List<Ticket> textResults = ticketRepository.searchAllTicketsTextFields(escapedQuery, pageable);
-            for (Ticket ticket : textResults) {
-                if (!seenIds.contains(ticket.getId())) {
-                    exactMatches.add(ticket);
-                    seenIds.add(ticket.getId());
-                    if (exactMatches.size() >= limit) break;
-                }
-            }
-        }
-        
-        // 4. Fuzzy search if we still need more results
-        if (exactMatches.size() < limit) {
-            double fuzzyThreshold = FuzzySearchUtil.getDefaultThreshold();
-            List<Ticket> allTickets = ticketRepository.findAll();
-            for (Ticket ticket : allTickets) {
-                if (!seenIds.contains(ticket.getId())) {
-                    boolean titleMatch = FuzzySearchUtil.fuzzyMatches(trimmedQuery, ticket.getTitle(), fuzzyThreshold);
-                    boolean descMatch = FuzzySearchUtil.fuzzyMatches(trimmedQuery, ticket.getDescription(), fuzzyThreshold);
-                    if (titleMatch || descMatch) {
-                        fuzzyMatches.add(ticket);
-                        seenIds.add(ticket.getId());
-                    }
-                }
-            }
-            
-            // Sort fuzzy matches by relevance
-            fuzzyMatches.sort((a, b) -> {
-                double scoreA = FuzzySearchUtil.calculateRelevanceScore(trimmedQuery, a.getTitle(), a.getDescription());
-                double scoreB = FuzzySearchUtil.calculateRelevanceScore(trimmedQuery, b.getTitle(), b.getDescription());
-                return Double.compare(scoreB, scoreA);
-            });
-        }
-        
-        // Combine and limit results
-        List<Ticket> allResults = new ArrayList<>(exactMatches);
-        allResults.addAll(fuzzyMatches);
-        
-        return allResults.stream()
-                .limit(limit)
-                .map(this::mapToTicketResponse)
-                .collect(Collectors.toList());
-    }
-
-    // Get count of matching tickets for autocomplete (includes fuzzy matches)
     public long getSearchCountForAgent(String agentId, String query) {
         String trimmedQuery = query.trim();
         String escapedQuery = escapeRegex(trimmedQuery);
@@ -566,11 +524,9 @@ public class TicketService {
         
         Set<String> seenIds = new HashSet<>();
         
-        // 1. Check for exact ID match
         ticketRepository.findByIdAndAssignedAgentId(trimmedQuery, agentId)
                 .ifPresent(ticket -> seenIds.add(ticket.getId()));
         
-        // 2. Check for partial ID match
         if (isValidIdPattern(trimmedQuery)) {
             List<Ticket> agentTickets = ticketRepository.findByAssignedAgentId(agentId);
             for (Ticket ticket : agentTickets) {
@@ -580,13 +536,11 @@ public class TicketService {
             }
         }
         
-        // 3. Add text field matches to seenIds (to avoid double counting)
         List<Ticket> textResults = ticketRepository.searchByAgentIdTextFields(agentId, escapedQuery, pageable);
         for (Ticket ticket : textResults) {
             seenIds.add(ticket.getId());
         }
         
-        // 4. Add fuzzy matches
         double fuzzyThreshold = FuzzySearchUtil.getDefaultThreshold();
         List<Ticket> agentTickets = ticketRepository.findByAssignedAgentId(agentId);
         for (Ticket ticket : agentTickets) {
@@ -609,11 +563,9 @@ public class TicketService {
         
         Set<String> seenIds = new HashSet<>();
         
-        // 1. Check for exact ID match
         ticketRepository.findById(trimmedQuery)
                 .ifPresent(ticket -> seenIds.add(ticket.getId()));
         
-        // 2. Check for partial ID match
         if (isValidIdPattern(trimmedQuery)) {
             List<Ticket> allTickets = ticketRepository.findAll();
             for (Ticket ticket : allTickets) {
@@ -623,13 +575,11 @@ public class TicketService {
             }
         }
         
-        // 3. Add text field matches to seenIds (to avoid double counting)
         List<Ticket> textResults = ticketRepository.searchAllTicketsTextFields(escapedQuery, pageable);
         for (Ticket ticket : textResults) {
             seenIds.add(ticket.getId());
         }
         
-        // 4. Add fuzzy matches
         double fuzzyThreshold = FuzzySearchUtil.getDefaultThreshold();
         List<Ticket> allTickets = ticketRepository.findAll();
         for (Ticket ticket : allTickets) {
@@ -645,14 +595,10 @@ public class TicketService {
         return seenIds.size();
     }
 
-    // Check if query looks like a valid MongoDB ObjectId pattern (hexadecimal)
     private boolean isValidIdPattern(String query) {
-        // MongoDB ObjectIds are 24 hex characters
-        // Allow partial matches (at least 3 characters that are hex)
         return query.length() >= 3 && query.matches("^[a-fA-F0-9]+$");
     }
 
-    // Escape special regex characters for safe querying
     private String escapeRegex(String query) {
         return Pattern.quote(query);
     }
@@ -678,6 +624,20 @@ public class TicketService {
                 .updatedAt(ticket.getUpdatedAt())
                 .closedAt(ticket.getClosedAt())
                 .autoAssigned(ticket.isAutoAssigned())
+                .build();
+    }
+
+    private TicketSummaryResponse mapToTicketSummary(Ticket ticket) {
+        return TicketSummaryResponse.builder()
+                .id(ticket.getId())
+                .title(ticket.getTitle())
+                .description(ticket.getDescription())
+                .status(ticket.getStatus())
+                .assignedAgentId(ticket.getAssignedAgentId())
+                .assignedAgentName(ticket.getAssignedAgentName())
+                .customerName(ticket.getCustomerName())
+                .createdAt(ticket.getCreatedAt())
+                .updatedAt(ticket.getUpdatedAt())
                 .build();
     }
 }

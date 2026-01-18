@@ -4,7 +4,7 @@ server:
 spring:
   data:
     mongodb:
-      uri: mongodb://172.17.0.2:27017/ticketing_system
+      uri: mongodb://172.17.0.3:27017/ticketing_system
       database: ticketing_system
 
 jwt:

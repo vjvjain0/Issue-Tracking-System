@@ -14,6 +14,6 @@ import java.util.List;
 public class AutoAssignResponse {
     private int ticketsAssigned;
     private int ticketsFailed;
-    private List<TicketResponse> assignedTickets;
+    private List<TicketSummaryResponse> assignedTickets;
     private String message;
 }

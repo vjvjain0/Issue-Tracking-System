@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { ticketAPI, managerAPI } from "../services/api";
+import { ticketAPI } from "../services/api";
 import "./Navbar.css";
 
 const Navbar = () => {
@@ -17,7 +17,6 @@ const Navbar = () => {
   const debounceRef = useRef(null);
 
   useEffect(() => {
-    // Handle click outside to close dropdown
     const handleClickOutside = (event) => {
       if (searchRef.current && !searchRef.current.contains(event.target)) {
         setShowDropdown(false);
@@ -29,7 +28,6 @@ const Navbar = () => {
   }, []);
 
   useEffect(() => {
-    // Debounced search
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
@@ -44,8 +42,7 @@ const Navbar = () => {
     debounceRef.current = setTimeout(async () => {
       try {
         setIsSearching(true);
-        const api = isManager() ? managerAPI : ticketAPI;
-        const response = await api.autocomplete(searchQuery.trim(), 5);
+        const response = await ticketAPI.autocomplete(searchQuery.trim(), 5);
         setSearchResults(response.data.tickets);
         setTotalCount(response.data.totalCount);
         setShowDropdown(true);
@@ -63,7 +60,7 @@ const Navbar = () => {
         clearTimeout(debounceRef.current);
       }
     };
-  }, [searchQuery, isManager]);
+  }, [searchQuery]);
 
   const handleLogout = () => {
     logout();
@@ -87,6 +84,10 @@ const Navbar = () => {
   const handleViewAllResults = () => {
     setShowDropdown(false);
     navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+  };
+
+  const handleProfileClick = () => {
+    navigate('/profile');
   };
 
   const getStatusClass = (status) => {
@@ -165,7 +166,7 @@ const Navbar = () => {
                       </div>
                       <div className="search-result-title">{ticket.title}</div>
                       <div className="search-result-desc">
-                        {ticket.description.length > 60
+                        {ticket.description && ticket.description.length > 60
                           ? ticket.description.substring(0, 60) + '...'
                           : ticket.description}
                       </div>
@@ -186,10 +187,15 @@ const Navbar = () => {
         </div>
 
         <div className="navbar-user">
-          <span className="user-info">
-            <span className="user-name">{user?.name}</span>
-            <span className="user-role">{user?.role}</span>
-          </span>
+          <div className="user-info-clickable" onClick={handleProfileClick}>
+            <span className="user-avatar">
+              {user?.name?.charAt(0).toUpperCase()}
+            </span>
+            <span className="user-details">
+              <span className="user-name">{user?.name}</span>
+              <span className="user-role">{user?.role}</span>
+            </span>
+          </div>
           <button onClick={handleLogout} className="logout-btn">
             Logout
           </button>

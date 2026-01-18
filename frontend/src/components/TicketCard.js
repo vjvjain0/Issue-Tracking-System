@@ -45,7 +45,7 @@ const TicketCard = ({ ticket, showAgent = false }) => {
       <h3 className="ticket-title">{ticket.title}</h3>
 
       <p className="ticket-description">
-        {ticket.description.length > 100
+        {ticket.description && ticket.description.length > 100
           ? `${ticket.description.substring(0, 100)}...`
           : ticket.description}
       </p>
@@ -61,12 +61,6 @@ const TicketCard = ({ ticket, showAgent = false }) => {
             <span className="value">{ticket.assignedAgentName}</span>
           </div>
         )}
-      </div>
-
-      <div className="ticket-meta">
-        <span className="meta-item">
-          💬 {ticket.comments?.length || 0} comments
-        </span>
       </div>
     </div>
   );

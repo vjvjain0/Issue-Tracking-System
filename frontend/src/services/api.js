@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://localhost:8080/api";
+const API_BASE_URL = "http://localhost:8080/api/v1";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -41,51 +41,72 @@ export const authAPI = {
   login: (email, password) => api.post("/auth/login", { email, password }),
 };
 
-// Ticket API
+// Ticket API - Unified for both agents and managers
 export const ticketAPI = {
-  getMyTickets: () => api.get("/tickets/my-tickets"),
-  getMyTicketsGrouped: () => api.get("/tickets/my-tickets/grouped"),
+  // Get tickets (role-based: managers see all, agents see assigned)
+  getTickets: () => api.get("/tickets"),
+  
+  // Get tickets grouped by status (for agents)
+  getTicketsGrouped: () => api.get("/tickets?grouped=true"),
+  
+  // Get unassigned tickets (manager only)
+  getUnassignedTickets: () => api.get("/tickets?assigned=false"),
+  
+  // Get ticket details
   getTicketDetails: (ticketId) => api.get(`/tickets/${ticketId}`),
+  
+  // Update ticket status
   updateStatus: (ticketId, status) =>
     api.patch(`/tickets/${ticketId}/status`, { status }),
+  
+  // Add comment to ticket
   addComment: (ticketId, content) =>
     api.post(`/tickets/${ticketId}/comments`, { content }),
-  createTicket: (data) => api.post("/tickets/create", data),
-  // Search endpoints for agents
-  search: (query, page = 0, size = 10) =>
-    api.get(`/tickets/search?query=${encodeURIComponent(query)}&page=${page}&size=${size}`),
-  autocomplete: (query, limit = 5) =>
-    api.get(`/tickets/search/autocomplete?query=${encodeURIComponent(query)}&limit=${limit}`),
-};
-
-// Manager API
-export const managerAPI = {
-  getAllTickets: () => api.get("/manager/tickets"),
-  getUnassignedTickets: () => api.get("/manager/tickets/unassigned"),
+  
+  // Create a new ticket (public)
+  createTicket: (data) => api.post("/tickets", data),
+  
+  // Assign ticket to agent (manager only)
   assignTicket: (ticketId, agentId) =>
-    api.patch(`/manager/tickets/${ticketId}/assign`, { agentId }),
-  getAllAgents: () => api.get("/manager/agents"),
-  getTicketDetails: (ticketId) => api.get(`/manager/tickets/${ticketId}`),
-  // Search endpoints for managers
+    api.patch(`/tickets/${ticketId}/assign`, { agentId }),
+  
+  // Auto-assign all unassigned tickets (manager only)
+  autoAssignAll: () => api.post("/tickets/auto-assign"),
+  
+  // Search tickets (paginated)
   search: (query, page = 0, size = 10) =>
-    api.get(`/manager/tickets/search?query=${encodeURIComponent(query)}&page=${page}&size=${size}`),
+    api.get(`/tickets?query=${encodeURIComponent(query)}&page=${page}&size=${size}`),
+  
+  // Autocomplete search
   autocomplete: (query, limit = 5) =>
-    api.get(`/manager/tickets/search/autocomplete?query=${encodeURIComponent(query)}&limit=${limit}`),
+    api.get(`/tickets/autocomplete?query=${encodeURIComponent(query)}&limit=${limit}`),
 };
 
-// Auto-Assignment API (Manager only)
-export const autoAssignAPI = {
-  autoAssignAll: () => api.post("/manager/auto-assign/all"),
-  getWorkloads: () => api.get("/manager/auto-assign/workloads"),
-  getStats: () => api.get("/manager/auto-assign/stats"),
-  getCurrentScores: () => api.get("/manager/auto-assign/scores/current"),
-  getScoreHistory: (weeks = 4) =>
-    api.get(`/manager/auto-assign/scores/history?weeks=${weeks}`),
+// Agent API (Manager only)
+export const agentAPI = {
+  // Get all agents
+  getAgents: () => api.get("/agents"),
+  
+  // Get agent details
+  getAgentDetails: (agentId) => api.get(`/agents/${agentId}`),
+  
+  // Get workloads for all agents
+  getWorkloads: () => api.get("/agents/workloads"),
+  
+  // Get workload for a specific agent
+  getWorkload: (agentId) => api.get(`/agents/${agentId}/workload`),
+  
+  // Get scores for all agents
+  getScores: (weeks = 1) => api.get(`/agents/scores?weeks=${weeks}`),
+  
+  // Get score for a specific agent
+  getScore: (agentId) => api.get(`/agents/${agentId}/score`),
 };
 
 // User API
 export const userAPI = {
   getCurrentUser: () => api.get("/users/me"),
+  heartbeat: () => api.post("/users/heartbeat"),
 };
 
 export default api;

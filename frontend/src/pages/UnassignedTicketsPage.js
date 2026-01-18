@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { managerAPI, autoAssignAPI } from "../services/api";
+import { ticketAPI, agentAPI } from "../services/api";
 import Navbar from "../components/Navbar";
 import StatusBadge from "../components/StatusBadge";
 import "./UnassignedTicketsPage.css";
@@ -23,8 +23,8 @@ const UnassignedTicketsPage = () => {
     try {
       setLoading(true);
       const [ticketsRes, agentsRes] = await Promise.all([
-        managerAPI.getUnassignedTickets(),
-        managerAPI.getAllAgents(),
+        ticketAPI.getUnassignedTickets(),
+        agentAPI.getAgents(),
       ]);
       setTickets(ticketsRes.data);
       setAgents(agentsRes.data);
@@ -41,7 +41,7 @@ const UnassignedTicketsPage = () => {
 
     try {
       setAssigning(true);
-      await managerAPI.assignTicket(selectedTicket, selectedAgent);
+      await ticketAPI.assignTicket(selectedTicket, selectedAgent);
       setSelectedTicket(null);
       setSelectedAgent("");
       await fetchData();
@@ -57,7 +57,7 @@ const UnassignedTicketsPage = () => {
       setAutoAssigning(true);
       setSuccessMessage("");
       setError("");
-      const response = await autoAssignAPI.autoAssignAll();
+      const response = await ticketAPI.autoAssignAll();
       setSuccessMessage(response.data.message);
       await fetchData();
     } catch (err) {
@@ -137,16 +137,15 @@ const UnassignedTicketsPage = () => {
                       <div className="ticket-info">
                         <span className="ticket-title">{ticket.title}</span>
                         <span className="ticket-desc">
-                          {ticket.description.substring(0, 60)}...
+                          {ticket.description && ticket.description.length > 60
+                            ? ticket.description.substring(0, 60) + "..."
+                            : ticket.description}
                         </span>
                       </div>
                     </td>
                     <td>
                       <div className="customer-info">
                         <span>{ticket.customerName}</span>
-                        <span className="customer-email">
-                          {ticket.customerEmail}
-                        </span>
                       </div>
                     </td>
                     <td>

@@ -28,6 +28,13 @@ public class User {
 
     private Role role;
 
+    private String employeeId;
+
+    private String phoneNumber;
+
+    // Stored as epoch milliseconds for timezone-safe handling
+    private Long lastActiveAt;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

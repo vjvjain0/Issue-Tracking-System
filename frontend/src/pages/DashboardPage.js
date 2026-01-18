@@ -17,7 +17,7 @@ const DashboardPage = () => {
   const fetchTickets = async () => {
     try {
       setLoading(true);
-      const response = await ticketAPI.getMyTicketsGrouped();
+      const response = await ticketAPI.getTicketsGrouped();
       setTicketsByStatus(response.data);
       setError('');
     } catch (err) {

@@ -197,3 +197,9 @@
     border-radius: 6px;
     font-weight: bold;
 }
+
+.ticket-id-small {
+  font-size: 0.75rem;
+  color: #6c757d;
+  font-family: "SFMono-Regular", Consolas, monospace;
+}

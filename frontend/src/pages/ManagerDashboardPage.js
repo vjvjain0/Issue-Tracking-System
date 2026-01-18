@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { managerAPI } from '../services/api';
+import { ticketAPI } from '../services/api';
 import TicketCard from '../components/TicketCard';
 import Navbar from '../components/Navbar';
 import './ManagerDashboardPage.css';
@@ -17,7 +17,7 @@ const ManagerDashboardPage = () => {
   const fetchTickets = async () => {
     try {
       setLoading(true);
-      const response = await managerAPI.getAllTickets();
+      const response = await ticketAPI.getTickets();
       setTickets(response.data);
       setError('');
     } catch (err) {
@@ -39,8 +39,8 @@ const ManagerDashboardPage = () => {
     return tickets.filter((t) => t.status === status).length;
   };
 
-  const statuses = [
-    { key: 'ALL', label: 'All' },
+  const tabs = [
+    { key: 'ALL', label: 'All Tickets' },
     { key: 'NOT_STARTED', label: 'Not Started' },
     { key: 'IN_PROGRESS', label: 'In Progress' },
     { key: 'RESOLVED', label: 'Resolved' },
@@ -69,16 +69,16 @@ const ManagerDashboardPage = () => {
 
         {error && <div className="error-banner">{error}</div>}
 
-        <div className="stats-grid">
-          {statuses.map((status) => (
-            <div
-              key={status.key}
-              className={`stat-card ${filterStatus === status.key ? 'active' : ''}`}
-              onClick={() => setFilterStatus(status.key)}
+        <div className="tabs-container">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              className={`tab-btn ${filterStatus === tab.key ? 'active' : ''}`}
+              onClick={() => setFilterStatus(tab.key)}
             >
-              <span className="stat-count">{getStatusCount(status.key)}</span>
-              <span className="stat-label">{status.label}</span>
-            </div>
+              {tab.label}
+              <span className="tab-count">{getStatusCount(tab.key)}</span>
+            </button>
           ))}
         </div>
 
@@ -87,6 +87,7 @@ const ManagerDashboardPage = () => {
             <div className="empty-state">
               <span className="empty-icon">📭</span>
               <h3>No tickets found</h3>
+              <p>There are no tickets in this category</p>
             </div>
           ) : (
             getFilteredTickets().map((ticket) => (

@@ -16,6 +16,7 @@ import ManagerDashboardPage from "./pages/ManagerDashboardPage";
 import UnassignedTicketsPage from "./pages/UnassignedTicketsPage";
 import AgentsPage from "./pages/AgentsPage";
 import SearchResultsPage from "./pages/SearchResultsPage";
+import ProfilePage from "./pages/ProfilePage";
 
 // Home redirect based on role
 const HomeRedirect = () => {
@@ -46,6 +47,16 @@ function App() {
 
           {/* Home Redirect */}
           <Route path="/" element={<HomeRedirect />} />
+
+          {/* Profile Route (shared by agents and managers) */}
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Agent Routes */}
           <Route
