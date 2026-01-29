@@ -1,21 +1,31 @@
 package com.ticketing.system.service;
 
-import com.ticketing.system.dto.*;
+import com.ticketing.system.dto.AddCommentRequest;
+import com.ticketing.system.dto.AssignTicketRequest;
+import com.ticketing.system.dto.CreateTicketRequest;
+import com.ticketing.system.dto.TicketResponse;
+import com.ticketing.system.dto.TicketSearchResponse;
+import com.ticketing.system.dto.TicketSummaryResponse;
+import com.ticketing.system.dto.UpdateStatusRequest;
 import com.ticketing.system.exception.ApiException;
-import com.ticketing.system.model.*;
+import com.ticketing.system.model.Activity;
+import com.ticketing.system.model.Comment;
+import com.ticketing.system.model.Role;
+import com.ticketing.system.model.Ticket;
+import com.ticketing.system.model.TicketStatus;
+import com.ticketing.system.model.User;
 import com.ticketing.system.repository.TicketRepository;
 import com.ticketing.system.repository.UserRepository;
-import com.ticketing.system.util.FuzzySearchUtil;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.*;
-import java.util.regex.Pattern;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -24,6 +34,7 @@ public class TicketService {
 
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
+    private final TicketElasticsearchService ticketElasticsearchService;
 
     public TicketResponse createTicket(CreateTicketRequest request) {
         return createTicket(request, false);
@@ -54,6 +65,7 @@ public class TicketService {
         ticket.getActivities().add(activity);
 
         Ticket savedTicket = ticketRepository.save(ticket);
+        ticketElasticsearchService.indexTicket(savedTicket);
         return mapToTicketResponse(savedTicket);
     }
 
@@ -89,6 +101,7 @@ public class TicketService {
         ticket.getActivities().add(activityLog);
 
         Ticket savedTicket = ticketRepository.save(ticket);
+        ticketElasticsearchService.indexTicket(savedTicket);
         return mapToTicketResponse(savedTicket);
     }
 
@@ -123,6 +136,7 @@ public class TicketService {
         ticket.getActivities().add(activityLog);
 
         Ticket savedTicket = ticketRepository.save(ticket);
+        ticketElasticsearchService.indexTicket(savedTicket);
         return mapToTicketResponse(savedTicket);
     }
 
@@ -179,6 +193,7 @@ public class TicketService {
         ticket.getActivities().add(activityLog);
 
         Ticket savedTicket = ticketRepository.save(ticket);
+        ticketElasticsearchService.indexTicket(savedTicket);
         return mapToTicketResponse(savedTicket);
     }
 
@@ -232,209 +247,20 @@ public class TicketService {
     }
 
     public List<TicketSummaryResponse> autocompleteForAgentSummary(String agentId, String query, int limit) {
-        String trimmedQuery = query.trim();
-        String escapedQuery = escapeRegex(trimmedQuery);
-        Pageable pageable = PageRequest.of(0, limit * 2, Sort.by(Sort.Direction.DESC, "createdAt"));
-        
-        Set<String> seenIds = new HashSet<>();
-        List<Ticket> exactMatches = new ArrayList<>();
-        List<Ticket> fuzzyMatches = new ArrayList<>();
-        
-        ticketRepository.findByIdAndAssignedAgentId(trimmedQuery, agentId)
-                .ifPresent(ticket -> {
-                    exactMatches.add(ticket);
-                    seenIds.add(ticket.getId());
-                });
-        
-        if (isValidIdPattern(trimmedQuery) && exactMatches.size() < limit) {
-            List<Ticket> agentTickets = ticketRepository.findByAssignedAgentId(agentId);
-            for (Ticket ticket : agentTickets) {
-                if (!seenIds.contains(ticket.getId()) && 
-                    ticket.getId().toLowerCase().contains(trimmedQuery.toLowerCase())) {
-                    exactMatches.add(ticket);
-                    seenIds.add(ticket.getId());
-                    if (exactMatches.size() >= limit) break;
-                }
-            }
-        }
-        
-        if (exactMatches.size() < limit) {
-            List<Ticket> textResults = ticketRepository.searchByAgentIdTextFields(agentId, escapedQuery, pageable);
-            for (Ticket ticket : textResults) {
-                if (!seenIds.contains(ticket.getId())) {
-                    exactMatches.add(ticket);
-                    seenIds.add(ticket.getId());
-                    if (exactMatches.size() >= limit) break;
-                }
-            }
-        }
-        
-        if (exactMatches.size() < limit) {
-            double fuzzyThreshold = FuzzySearchUtil.getDefaultThreshold();
-            List<Ticket> agentTickets = ticketRepository.findByAssignedAgentId(agentId);
-            for (Ticket ticket : agentTickets) {
-                if (!seenIds.contains(ticket.getId())) {
-                    boolean titleMatch = FuzzySearchUtil.fuzzyMatches(trimmedQuery, ticket.getTitle(), fuzzyThreshold);
-                    boolean descMatch = FuzzySearchUtil.fuzzyMatches(trimmedQuery, ticket.getDescription(), fuzzyThreshold);
-                    if (titleMatch || descMatch) {
-                        fuzzyMatches.add(ticket);
-                        seenIds.add(ticket.getId());
-                    }
-                }
-            }
-            
-            fuzzyMatches.sort((a, b) -> {
-                double scoreA = FuzzySearchUtil.calculateRelevanceScore(trimmedQuery, a.getTitle(), a.getDescription());
-                double scoreB = FuzzySearchUtil.calculateRelevanceScore(trimmedQuery, b.getTitle(), b.getDescription());
-                return Double.compare(scoreB, scoreA);
-            });
-        }
-        
-        List<Ticket> allResults = new ArrayList<>(exactMatches);
-        allResults.addAll(fuzzyMatches);
-        
-        return allResults.stream()
-                .limit(limit)
-                .map(this::mapToTicketSummary)
-                .collect(Collectors.toList());
+        return ticketElasticsearchService.fuzzySearchForAgent(agentId, query.trim(), limit);
     }
 
     public List<TicketSummaryResponse> autocompleteForManagerSummary(String query, int limit) {
-        String trimmedQuery = query.trim();
-        String escapedQuery = escapeRegex(trimmedQuery);
-        Pageable pageable = PageRequest.of(0, limit * 2, Sort.by(Sort.Direction.DESC, "createdAt"));
-        
-        Set<String> seenIds = new HashSet<>();
-        List<Ticket> exactMatches = new ArrayList<>();
-        List<Ticket> fuzzyMatches = new ArrayList<>();
-        
-        ticketRepository.findById(trimmedQuery)
-                .ifPresent(ticket -> {
-                    exactMatches.add(ticket);
-                    seenIds.add(ticket.getId());
-                });
-        
-        if (isValidIdPattern(trimmedQuery) && exactMatches.size() < limit) {
-            List<Ticket> allTickets = ticketRepository.findAll();
-            for (Ticket ticket : allTickets) {
-                if (!seenIds.contains(ticket.getId()) && 
-                    ticket.getId().toLowerCase().contains(trimmedQuery.toLowerCase())) {
-                    exactMatches.add(ticket);
-                    seenIds.add(ticket.getId());
-                    if (exactMatches.size() >= limit) break;
-                }
-            }
-        }
-        
-        if (exactMatches.size() < limit) {
-            List<Ticket> textResults = ticketRepository.searchAllTicketsTextFields(escapedQuery, pageable);
-            for (Ticket ticket : textResults) {
-                if (!seenIds.contains(ticket.getId())) {
-                    exactMatches.add(ticket);
-                    seenIds.add(ticket.getId());
-                    if (exactMatches.size() >= limit) break;
-                }
-            }
-        }
-        
-        if (exactMatches.size() < limit) {
-            double fuzzyThreshold = FuzzySearchUtil.getDefaultThreshold();
-            List<Ticket> allTickets = ticketRepository.findAll();
-            for (Ticket ticket : allTickets) {
-                if (!seenIds.contains(ticket.getId())) {
-                    boolean titleMatch = FuzzySearchUtil.fuzzyMatches(trimmedQuery, ticket.getTitle(), fuzzyThreshold);
-                    boolean descMatch = FuzzySearchUtil.fuzzyMatches(trimmedQuery, ticket.getDescription(), fuzzyThreshold);
-                    if (titleMatch || descMatch) {
-                        fuzzyMatches.add(ticket);
-                        seenIds.add(ticket.getId());
-                    }
-                }
-            }
-            
-            fuzzyMatches.sort((a, b) -> {
-                double scoreA = FuzzySearchUtil.calculateRelevanceScore(trimmedQuery, a.getTitle(), a.getDescription());
-                double scoreB = FuzzySearchUtil.calculateRelevanceScore(trimmedQuery, b.getTitle(), b.getDescription());
-                return Double.compare(scoreB, scoreA);
-            });
-        }
-        
-        List<Ticket> allResults = new ArrayList<>(exactMatches);
-        allResults.addAll(fuzzyMatches);
-        
-        return allResults.stream()
-                .limit(limit)
-                .map(this::mapToTicketSummary)
-                .collect(Collectors.toList());
+        return ticketElasticsearchService.fuzzySearchAll(query.trim(), limit);
     }
 
     public TicketSearchResponse searchTicketsForAgent(String agentId, String query, int page, int size) {
-        String trimmedQuery = query.trim();
-        String escapedQuery = escapeRegex(trimmedQuery);
-        Pageable pageable = PageRequest.of(0, Integer.MAX_VALUE, Sort.by(Sort.Direction.DESC, "createdAt"));
-        
-        Set<String> seenIds = new HashSet<>();
-        List<Ticket> exactMatches = new ArrayList<>();
-        List<Ticket> fuzzyMatches = new ArrayList<>();
-        
-        ticketRepository.findByIdAndAssignedAgentId(trimmedQuery, agentId)
-                .ifPresent(ticket -> {
-                    exactMatches.add(ticket);
-                    seenIds.add(ticket.getId());
-                });
-        
-        if (isValidIdPattern(trimmedQuery)) {
-            List<Ticket> agentTickets = ticketRepository.findByAssignedAgentId(agentId);
-            for (Ticket ticket : agentTickets) {
-                if (!seenIds.contains(ticket.getId()) && 
-                    ticket.getId().toLowerCase().contains(trimmedQuery.toLowerCase())) {
-                    exactMatches.add(ticket);
-                    seenIds.add(ticket.getId());
-                }
-            }
-        }
-        
-        List<Ticket> textResults = ticketRepository.searchByAgentIdTextFields(agentId, escapedQuery, pageable);
-        for (Ticket ticket : textResults) {
-            if (!seenIds.contains(ticket.getId())) {
-                exactMatches.add(ticket);
-                seenIds.add(ticket.getId());
-            }
-        }
-        
-        double fuzzyThreshold = FuzzySearchUtil.getDefaultThreshold();
-        List<Ticket> agentTickets = ticketRepository.findByAssignedAgentId(agentId);
-        for (Ticket ticket : agentTickets) {
-            if (!seenIds.contains(ticket.getId())) {
-                boolean titleMatch = FuzzySearchUtil.fuzzyMatches(trimmedQuery, ticket.getTitle(), fuzzyThreshold);
-                boolean descMatch = FuzzySearchUtil.fuzzyMatches(trimmedQuery, ticket.getDescription(), fuzzyThreshold);
-                if (titleMatch || descMatch) {
-                    fuzzyMatches.add(ticket);
-                    seenIds.add(ticket.getId());
-                }
-            }
-        }
-        
-        fuzzyMatches.sort((a, b) -> {
-            double scoreA = FuzzySearchUtil.calculateRelevanceScore(trimmedQuery, a.getTitle(), a.getDescription());
-            double scoreB = FuzzySearchUtil.calculateRelevanceScore(trimmedQuery, b.getTitle(), b.getDescription());
-            return Double.compare(scoreB, scoreA);
-        });
-        
-        exactMatches.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
-        List<Ticket> allResults = new ArrayList<>(exactMatches);
-        allResults.addAll(fuzzyMatches);
-        
-        long totalCount = allResults.size();
+        List<TicketSummaryResponse> tickets = ticketElasticsearchService.fuzzySearchForAgentPaged(agentId, query.trim(), page, size);
+        long totalCount = ticketElasticsearchService.countFuzzySearchForAgent(agentId, query.trim());
         int totalPages = (int) Math.ceil((double) totalCount / size);
-        int fromIndex = page * size;
-        int toIndex = Math.min(fromIndex + size, allResults.size());
-        
-        List<Ticket> pagedResults = fromIndex < allResults.size() 
-                ? allResults.subList(fromIndex, toIndex) 
-                : new ArrayList<>();
 
         return TicketSearchResponse.builder()
-                .tickets(pagedResults.stream().map(this::mapToTicketSummary).collect(Collectors.toList()))
+                .tickets(tickets)
                 .totalCount(totalCount)
                 .page(page)
                 .size(size)
@@ -443,73 +269,12 @@ public class TicketService {
     }
 
     public TicketSearchResponse searchAllTickets(String query, int page, int size) {
-        String trimmedQuery = query.trim();
-        String escapedQuery = escapeRegex(trimmedQuery);
-        Pageable pageable = PageRequest.of(0, Integer.MAX_VALUE, Sort.by(Sort.Direction.DESC, "createdAt"));
-        
-        Set<String> seenIds = new HashSet<>();
-        List<Ticket> exactMatches = new ArrayList<>();
-        List<Ticket> fuzzyMatches = new ArrayList<>();
-        
-        ticketRepository.findById(trimmedQuery)
-                .ifPresent(ticket -> {
-                    exactMatches.add(ticket);
-                    seenIds.add(ticket.getId());
-                });
-        
-        if (isValidIdPattern(trimmedQuery)) {
-            List<Ticket> allTickets = ticketRepository.findAll();
-            for (Ticket ticket : allTickets) {
-                if (!seenIds.contains(ticket.getId()) && 
-                    ticket.getId().toLowerCase().contains(trimmedQuery.toLowerCase())) {
-                    exactMatches.add(ticket);
-                    seenIds.add(ticket.getId());
-                }
-            }
-        }
-        
-        List<Ticket> textResults = ticketRepository.searchAllTicketsTextFields(escapedQuery, pageable);
-        for (Ticket ticket : textResults) {
-            if (!seenIds.contains(ticket.getId())) {
-                exactMatches.add(ticket);
-                seenIds.add(ticket.getId());
-            }
-        }
-        
-        double fuzzyThreshold = FuzzySearchUtil.getDefaultThreshold();
-        List<Ticket> allTickets = ticketRepository.findAll();
-        for (Ticket ticket : allTickets) {
-            if (!seenIds.contains(ticket.getId())) {
-                boolean titleMatch = FuzzySearchUtil.fuzzyMatches(trimmedQuery, ticket.getTitle(), fuzzyThreshold);
-                boolean descMatch = FuzzySearchUtil.fuzzyMatches(trimmedQuery, ticket.getDescription(), fuzzyThreshold);
-                if (titleMatch || descMatch) {
-                    fuzzyMatches.add(ticket);
-                    seenIds.add(ticket.getId());
-                }
-            }
-        }
-        
-        fuzzyMatches.sort((a, b) -> {
-            double scoreA = FuzzySearchUtil.calculateRelevanceScore(trimmedQuery, a.getTitle(), a.getDescription());
-            double scoreB = FuzzySearchUtil.calculateRelevanceScore(trimmedQuery, b.getTitle(), b.getDescription());
-            return Double.compare(scoreB, scoreA);
-        });
-        
-        exactMatches.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
-        List<Ticket> allResults = new ArrayList<>(exactMatches);
-        allResults.addAll(fuzzyMatches);
-        
-        long totalCount = allResults.size();
+        List<TicketSummaryResponse> tickets = ticketElasticsearchService.fuzzySearchAllPaged(query.trim(), page, size);
+        long totalCount = ticketElasticsearchService.countFuzzySearchAll(query.trim());
         int totalPages = (int) Math.ceil((double) totalCount / size);
-        int fromIndex = page * size;
-        int toIndex = Math.min(fromIndex + size, allResults.size());
-        
-        List<Ticket> pagedResults = fromIndex < allResults.size() 
-                ? allResults.subList(fromIndex, toIndex) 
-                : new ArrayList<>();
 
         return TicketSearchResponse.builder()
-                .tickets(pagedResults.stream().map(this::mapToTicketSummary).collect(Collectors.toList()))
+                .tickets(tickets)
                 .totalCount(totalCount)
                 .page(page)
                 .size(size)
@@ -518,90 +283,14 @@ public class TicketService {
     }
 
     public long getSearchCountForAgent(String agentId, String query) {
-        String trimmedQuery = query.trim();
-        String escapedQuery = escapeRegex(trimmedQuery);
-        Pageable pageable = PageRequest.of(0, Integer.MAX_VALUE, Sort.by(Sort.Direction.DESC, "createdAt"));
-        
-        Set<String> seenIds = new HashSet<>();
-        
-        ticketRepository.findByIdAndAssignedAgentId(trimmedQuery, agentId)
-                .ifPresent(ticket -> seenIds.add(ticket.getId()));
-        
-        if (isValidIdPattern(trimmedQuery)) {
-            List<Ticket> agentTickets = ticketRepository.findByAssignedAgentId(agentId);
-            for (Ticket ticket : agentTickets) {
-                if (ticket.getId().toLowerCase().contains(trimmedQuery.toLowerCase())) {
-                    seenIds.add(ticket.getId());
-                }
-            }
-        }
-        
-        List<Ticket> textResults = ticketRepository.searchByAgentIdTextFields(agentId, escapedQuery, pageable);
-        for (Ticket ticket : textResults) {
-            seenIds.add(ticket.getId());
-        }
-        
-        double fuzzyThreshold = FuzzySearchUtil.getDefaultThreshold();
-        List<Ticket> agentTickets = ticketRepository.findByAssignedAgentId(agentId);
-        for (Ticket ticket : agentTickets) {
-            if (!seenIds.contains(ticket.getId())) {
-                boolean titleMatch = FuzzySearchUtil.fuzzyMatches(trimmedQuery, ticket.getTitle(), fuzzyThreshold);
-                boolean descMatch = FuzzySearchUtil.fuzzyMatches(trimmedQuery, ticket.getDescription(), fuzzyThreshold);
-                if (titleMatch || descMatch) {
-                    seenIds.add(ticket.getId());
-                }
-            }
-        }
-        
-        return seenIds.size();
+        return ticketElasticsearchService.countFuzzySearchForAgent(agentId, query.trim());
     }
 
     public long getSearchCountForManager(String query) {
-        String trimmedQuery = query.trim();
-        String escapedQuery = escapeRegex(trimmedQuery);
-        Pageable pageable = PageRequest.of(0, Integer.MAX_VALUE, Sort.by(Sort.Direction.DESC, "createdAt"));
-        
-        Set<String> seenIds = new HashSet<>();
-        
-        ticketRepository.findById(trimmedQuery)
-                .ifPresent(ticket -> seenIds.add(ticket.getId()));
-        
-        if (isValidIdPattern(trimmedQuery)) {
-            List<Ticket> allTickets = ticketRepository.findAll();
-            for (Ticket ticket : allTickets) {
-                if (ticket.getId().toLowerCase().contains(trimmedQuery.toLowerCase())) {
-                    seenIds.add(ticket.getId());
-                }
-            }
-        }
-        
-        List<Ticket> textResults = ticketRepository.searchAllTicketsTextFields(escapedQuery, pageable);
-        for (Ticket ticket : textResults) {
-            seenIds.add(ticket.getId());
-        }
-        
-        double fuzzyThreshold = FuzzySearchUtil.getDefaultThreshold();
-        List<Ticket> allTickets = ticketRepository.findAll();
-        for (Ticket ticket : allTickets) {
-            if (!seenIds.contains(ticket.getId())) {
-                boolean titleMatch = FuzzySearchUtil.fuzzyMatches(trimmedQuery, ticket.getTitle(), fuzzyThreshold);
-                boolean descMatch = FuzzySearchUtil.fuzzyMatches(trimmedQuery, ticket.getDescription(), fuzzyThreshold);
-                if (titleMatch || descMatch) {
-                    seenIds.add(ticket.getId());
-                }
-            }
-        }
-        
-        return seenIds.size();
+        return ticketElasticsearchService.countFuzzySearchAll(query.trim());
     }
 
-    private boolean isValidIdPattern(String query) {
-        return query.length() >= 3 && query.matches("^[a-fA-F0-9]+$");
-    }
 
-    private String escapeRegex(String query) {
-        return Pattern.quote(query);
-    }
 
     private Ticket getTicketById(String ticketId) {
         return ticketRepository.findById(ticketId)

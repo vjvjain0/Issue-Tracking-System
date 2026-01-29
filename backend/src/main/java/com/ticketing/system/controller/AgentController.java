@@ -1,6 +1,9 @@
 package com.ticketing.system.controller;
 
-import com.ticketing.system.dto.*;
+import com.ticketing.system.dto.AgentDetailResponse;
+import com.ticketing.system.dto.AgentScoreResponse;
+import com.ticketing.system.dto.AgentWorkloadResponse;
+import com.ticketing.system.dto.UserResponse;
 import com.ticketing.system.model.AgentScore;
 import com.ticketing.system.model.AgentWorkload;
 import com.ticketing.system.service.AgentScoreService;
@@ -9,7 +12,11 @@ import com.ticketing.system.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Optional;

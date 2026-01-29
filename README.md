@@ -1,6 +1,6 @@
 # Issue Tracking System
 
-A comprehensive issue tracking system built with Java Spring Boot 3 backend, React frontend, and MongoDB database.
+A comprehensive issue tracking system built with Java Spring Boot 3 backend, React frontend, MongoDB database, and Elasticsearch for advanced search capabilities.
 
 ## Features
 
@@ -21,8 +21,9 @@ A comprehensive issue tracking system built with Java Spring Boot 3 backend, Rea
 - **Search all tickets** system-wide by ID, title, or description
 
 ### Search Features
+- **Powered by Elasticsearch**: Fast, scalable search with fuzzy matching and relevance scoring
 - **Real-time autocomplete**: As you type in the search bar, results appear instantly
-- **Smart search**: Search by ticket ID, title, or description
+- **Smart search**: Search by ticket ID, title, or description with fuzzy matching
 - **Role-based results**: Agents see only their assigned tickets, managers see all tickets
 - **Paginated results**: Full search results page with pagination
 - **Result count**: Shows total number of matching tickets
@@ -48,6 +49,7 @@ A comprehensive issue tracking system built with Java Spring Boot 3 backend, Rea
 - **Backend**: Java 17 with Spring Boot 3
 - **Frontend**: React 18
 - **Database**: MongoDB
+- **Search Engine**: Elasticsearch 8.x
 - **Authentication**: JWT-based authentication
 
 ## Prerequisites
@@ -55,6 +57,7 @@ A comprehensive issue tracking system built with Java Spring Boot 3 backend, Rea
 - Java 17+
 - Node.js 16+
 - MongoDB running on localhost:27017
+- Elasticsearch 8.x running on localhost:9200
 
 ## Getting Started
 
@@ -69,7 +72,20 @@ brew services start mongodb-community
 docker run -d -p 27017:27017 --name mongodb mongo:latest
 ```
 
-### 2. Start Backend
+### 2. Start Elasticsearch
+Make sure Elasticsearch is running on `localhost:9200`
+
+```bash
+# Using homebrew on macOS
+brew services start elasticsearch
+
+# Or using Docker
+docker run -d -p 9200:9200 -e "discovery.type=single-node" --name elasticsearch elasticsearch:8.11.0
+```
+
+**Note**: When using Docker, you'll need to set up passwords and certificates for production use. For development, the single-node configuration works.
+
+### 3. Start Backend
 
 ```bash
 cd backend
@@ -78,7 +94,7 @@ cd backend
 
 The backend will start on `http://localhost:8080`
 
-### 3. Start Frontend
+### 4. Start Frontend
 
 ```bash
 cd frontend
@@ -224,17 +240,26 @@ Issue Tracking System/
 ├── backend/
 │   ├── src/main/java/com/ticketing/system/
 │   │   ├── config/          # Configuration classes
+│   │   │   ├── DataInitializer.java           # Initial data setup
+│   │   │   └── ElasticsearchIndexInitializer.java # ES index management
 │   │   ├── controller/      # REST controllers
-│   │   │   ├── AgentController.java    # /api/v1/agents/*
-│   │   │   ├── AuthController.java     # /api/v1/auth/*
-│   │   │   ├── TicketController.java   # /api/v1/tickets/*
-│   │   │   └── UserController.java     # /api/v1/users/*
+│   │   │   ├── AdminController.java          # Admin endpoints
+│   │   │   ├── AgentController.java          # /api/v1/agents/*
+│   │   │   ├── AuthController.java           # /api/v1/auth/*
+│   │   │   ├── TicketController.java         # /api/v1/tickets/*
+│   │   │   └── UserController.java           # /api/v1/users/*
 │   │   ├── dto/             # Data transfer objects
 │   │   ├── exception/       # Exception handling
-│   │   ├── model/           # MongoDB documents
-│   │   ├── repository/      # MongoDB repositories
+│   │   ├── model/           # MongoDB and ES documents
+│   │   │   ├── Ticket.java                  # MongoDB document
+│   │   │   └── TicketDocument.java          # Elasticsearch document
+│   │   ├── repository/      # MongoDB and ES repositories
+│   │   │   ├── TicketDocumentRepository.java # ES repository
+│   │   │   └── ... (MongoDB repositories)
 │   │   ├── security/        # JWT security
 │   │   └── service/         # Business logic
+│   │       ├── TicketElasticsearchService.java # ES operations
+│   │       └── ... (other services)
 │   └── pom.xml
 ├── frontend/
 │   ├── src/
@@ -254,8 +279,9 @@ On first startup, the system automatically creates:
 - 5 Agent accounts
 - 50 tickets with various statuses randomly assigned to agents
 - **Agent productivity scores for the last 3 weeks**
+- **Elasticsearch index** with proper mappings for ticket search
 
-This data is only created if the database is empty.
+This data is only created if the database is empty. On subsequent startups, the system checks if the Elasticsearch index is synchronized and reindexes if necessary.
 
 ## Auto-Assignment Algorithm
 
@@ -282,3 +308,18 @@ Where:
 3. Computes assignment priority using the formula above
 4. Assigns ticket to agent with highest priority
 5. Repeats for each unassigned ticket
+
+## Elasticsearch Configuration
+
+The system uses Elasticsearch for fast, fuzzy search capabilities:
+
+- **Index Name**: `tickets`
+- **Document Type**: `TicketDocument` with keyword fields for dates and text fields for searchable content
+- **Search Features**:
+  - Fuzzy matching with `AUTO` fuzziness on title and description
+  - Exact matching on ticket ID (when query matches hex pattern)
+  - Role-based filtering (agents see only assigned tickets)
+- **Initialization**: Automatic index creation and synchronization on startup
+- **Manual Reindexing**: Use `POST /admin/reindex` if needed
+
+For production deployments, configure Elasticsearch security, clustering, and backup strategies.

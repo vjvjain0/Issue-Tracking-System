@@ -1,13 +1,19 @@
 package com.ticketing.system.config;
 
-import com.ticketing.system.model.*;
+import com.ticketing.system.model.Activity;
+import com.ticketing.system.model.AgentScore;
+import com.ticketing.system.model.Comment;
+import com.ticketing.system.model.Role;
+import com.ticketing.system.model.Ticket;
+import com.ticketing.system.model.TicketStatus;
+import com.ticketing.system.model.User;
 import com.ticketing.system.repository.AgentScoreRepository;
 import com.ticketing.system.repository.TicketRepository;
 import com.ticketing.system.repository.UserRepository;
-import com.ticketing.system.service.AgentScoreService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -15,11 +21,16 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.TemporalAdjusters;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Random;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
+@Order(1)
 public class DataInitializer implements CommandLineRunner {
 
     private final UserRepository userRepository;
@@ -122,6 +133,8 @@ public class DataInitializer implements CommandLineRunner {
         }
 
         log.info("Created 50 tickets with various statuses");
+
+        // Note: Elasticsearch indexing will be handled by ElasticsearchIndexInitializer
 
         // Generate initial agent scores for current and previous week
         generateInitialScores(agents);
