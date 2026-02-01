@@ -1,13 +1,12 @@
 package com.ticketing.system.config;
 
 import com.ticketing.system.model.Activity;
-import com.ticketing.system.model.AgentScore;
 import com.ticketing.system.model.Comment;
+import com.ticketing.system.model.Priority;
 import com.ticketing.system.model.Role;
 import com.ticketing.system.model.Ticket;
 import com.ticketing.system.model.TicketStatus;
 import com.ticketing.system.model.User;
-import com.ticketing.system.repository.AgentScoreRepository;
 import com.ticketing.system.repository.TicketRepository;
 import com.ticketing.system.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +34,6 @@ public class DataInitializer implements CommandLineRunner {
 
     private final UserRepository userRepository;
     private final TicketRepository ticketRepository;
-    private final AgentScoreRepository agentScoreRepository;
     private final PasswordEncoder passwordEncoder;
 
     private final Random random = new Random();
@@ -103,6 +101,10 @@ public class DataInitializer implements CommandLineRunner {
             String customerEmail = customerName.toLowerCase().replace(" ", ".") + "@email.com";
             TicketStatus status = statuses[random.nextInt(statuses.length)];
 
+            // Assign random priority
+            Priority[] priorities = Priority.values();
+            Priority priority = priorities[random.nextInt(priorities.length)];
+
             LocalDateTime createdAt = LocalDateTime.now().minusDays(random.nextInt(30));
             LocalDateTime updatedAt = LocalDateTime.now().minusDays(random.nextInt(7));
             LocalDateTime closedAt = null;
@@ -117,6 +119,7 @@ public class DataInitializer implements CommandLineRunner {
                     .description("Detailed description for issue: " + ticketTitles[i] +
                             ". Customer is experiencing this problem and needs assistance.")
                     .status(status)
+                    .priority(priority)
                     .assignedAgentId(assignedAgent.getId())
                     .assignedAgentName(assignedAgent.getName())
                     .customerEmail(customerEmail)
@@ -134,10 +137,39 @@ public class DataInitializer implements CommandLineRunner {
 
         log.info("Created 50 tickets with various statuses");
 
+        // Create 3 unassigned tickets without priorities
+        String[] unassignedTitles = {
+            "System performance issues",
+            "Feature request: Dark mode",
+            "Account access problem"
+        };
+
+        for (int i = 0; i < 3; i++) {
+            String customerName = "Unassigned Customer " + (i + 1);
+            String customerEmail = "unassigned" + (i + 1) + "@email.com";
+
+            Ticket unassignedTicket = Ticket.builder()
+                    .title(unassignedTitles[i])
+                    .description("This is an unassigned ticket without priority. Description for: " + unassignedTitles[i])
+                    .status(TicketStatus.NOT_STARTED)
+                    // No priority set (null)
+                    // No assigned agent
+                    .customerEmail(customerEmail)
+                    .customerName(customerName)
+                    .comments(new ArrayList<>())
+                    .activities(new ArrayList<>())
+                    .createdAt(LocalDateTime.now().minusDays(random.nextInt(10)))
+                    .updatedAt(LocalDateTime.now().minusDays(random.nextInt(5)))
+                    .autoAssigned(false)
+                    .build();
+
+            ticketRepository.save(unassignedTicket);
+        }
+
+        log.info("Created 3 additional unassigned tickets without priorities");
+
         // Note: Elasticsearch indexing will be handled by ElasticsearchIndexInitializer
 
-        // Generate initial agent scores for current and previous week
-        generateInitialScores(agents);
         log.info("Data initialization complete!");
         log.info("");
         log.info("===========================================");
@@ -265,41 +297,5 @@ public class DataInitializer implements CommandLineRunner {
         return activities;
     }
 
-    private void generateInitialScores(List<User> agents) {
-        LocalDate currentWeekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-        LocalDate previousWeekStart = currentWeekStart.minusWeeks(1);
-        LocalDate twoWeeksAgoStart = currentWeekStart.minusWeeks(2);
 
-        // Generate scores for last 3 weeks with varying productivity
-        List<LocalDate> weeks = Arrays.asList(twoWeeksAgoStart, previousWeekStart, currentWeekStart);
-
-        for (LocalDate weekStart : weeks) {
-            LocalDate weekEnd = weekStart.plusDays(6);
-
-            for (User agent : agents) {
-                // Generate random but realistic scores
-                int ticketsResolved = random.nextInt(8) + 2; // 2-9 resolved
-                int ticketsInvalid = random.nextInt(3);      // 0-2 invalid
-                int ticketsClosed = ticketsResolved + ticketsInvalid;
-                double productivityScore = ticketsResolved * 1.0 + ticketsInvalid * 0.5;
-
-                AgentScore score = AgentScore.builder()
-                        .agentId(agent.getId())
-                        .agentName(agent.getName())
-                        .agentEmail(agent.getEmail())
-                        .weekStartDate(weekStart)
-                        .weekEndDate(weekEnd)
-                        .ticketsClosed(ticketsClosed)
-                        .ticketsResolved(ticketsResolved)
-                        .ticketsInvalid(ticketsInvalid)
-                        .productivityScore(productivityScore)
-                        .calculatedAt(LocalDateTime.now())
-                        .build();
-
-                agentScoreRepository.save(score);
-            }
-        }
-
-        log.info("Generated initial agent scores for last 3 weeks");
-    }
 }

@@ -14,6 +14,8 @@ const UnassignedTicketsPage = () => {
   const [assigning, setAssigning] = useState(false);
   const [autoAssigning, setAutoAssigning] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [editingPriority, setEditingPriority] = useState(null);
+  const [selectedPriority, setSelectedPriority] = useState("");
 
   useEffect(() => {
     fetchData();
@@ -64,6 +66,19 @@ const UnassignedTicketsPage = () => {
       setError("Failed to auto-assign tickets");
     } finally {
       setAutoAssigning(false);
+    }
+  };
+
+  const handleUpdatePriority = async () => {
+    if (!editingPriority || !selectedPriority) return;
+
+    try {
+      await ticketAPI.updatePriority(editingPriority, selectedPriority);
+      setEditingPriority(null);
+      setSelectedPriority("");
+      await fetchData();
+    } catch (err) {
+      setError("Failed to update priority");
     }
   };
 
@@ -126,6 +141,7 @@ const UnassignedTicketsPage = () => {
                   <th>Ticket</th>
                   <th>Customer</th>
                   <th>Status</th>
+                  <th>Priority</th>
                   <th>Created</th>
                   <th>Action</th>
                 </tr>
@@ -151,6 +167,56 @@ const UnassignedTicketsPage = () => {
                     <td>
                       <StatusBadge status={ticket.status} size="small" />
                     </td>
+                    <td>
+                      {editingPriority === ticket.id ? (
+                        <div className="priority-edit-controls">
+                          <select
+                            value={selectedPriority}
+                            onChange={(e) => setSelectedPriority(e.target.value)}
+                          >
+                            <option value="">Select Priority</option>
+                            <option value="LOW">Low</option>
+                            <option value="MEDIUM">Medium</option>
+                            <option value="HIGH">High</option>
+                          </select>
+                          <button
+                            className="confirm-btn"
+                            onClick={handleUpdatePriority}
+                            disabled={!selectedPriority}
+                          >
+                            ✓
+                          </button>
+                          <button
+                            className="cancel-btn"
+                            onClick={() => {
+                              setEditingPriority(null);
+                              setSelectedPriority("");
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="priority-display">
+                          {ticket.priority ? (
+                            <span className={`priority-badge priority-${ticket.priority.toLowerCase()}`}>
+                              {ticket.priority}
+                            </span>
+                          ) : (
+                            <span className="no-priority">Not Set</span>
+                          )}
+                          <button
+                            className="edit-priority-btn"
+                            onClick={() => {
+                              setEditingPriority(ticket.id);
+                              setSelectedPriority(ticket.priority || "");
+                            }}
+                          >
+                            ✏️
+                          </button>
+                        </div>
+                      )}
+                    </td>
                     <td>{formatDate(ticket.createdAt)}</td>
                     <td>
                       {selectedTicket === ticket.id ? (
@@ -169,7 +235,8 @@ const UnassignedTicketsPage = () => {
                           <button
                             className="confirm-btn"
                             onClick={handleAssign}
-                            disabled={!selectedAgent || assigning}
+                            disabled={!selectedAgent || assigning || !ticket.priority}
+                            title={!ticket.priority ? "Set priority before assigning" : ""}
                           >
                             {assigning ? "..." : "✓"}
                           </button>

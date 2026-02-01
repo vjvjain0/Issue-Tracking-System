@@ -2,6 +2,7 @@ package com.ticketing.system.dto;
 
 import com.ticketing.system.model.Activity;
 import com.ticketing.system.model.Comment;
+import com.ticketing.system.model.Priority;
 import com.ticketing.system.model.TicketStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,6 +21,7 @@ public class TicketResponse {
     private String title;
     private String description;
     private TicketStatus status;
+    private Priority priority;
     private String assignedAgentId;
     private String assignedAgentName;
     private String customerEmail;

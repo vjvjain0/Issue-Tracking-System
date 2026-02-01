@@ -26,6 +26,8 @@ public class Ticket {
 
     private TicketStatus status;
 
+    private Priority priority;
+
     private String assignedAgentId;
 
     private String assignedAgentName;

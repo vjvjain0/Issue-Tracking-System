@@ -1,7 +1,12 @@
 package com.ticketing.system.service;
 
-import com.ticketing.system.model.*;
-import com.ticketing.system.repository.AgentScoreRepository;
+import com.ticketing.system.model.Activity;
+import com.ticketing.system.model.AgentWorkload;
+import com.ticketing.system.model.Priority;
+import com.ticketing.system.model.Role;
+import com.ticketing.system.model.Ticket;
+import com.ticketing.system.model.TicketStatus;
+import com.ticketing.system.model.User;
 import com.ticketing.system.repository.TicketRepository;
 import com.ticketing.system.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -9,7 +14,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -19,13 +31,11 @@ public class TicketAutoAssignmentService {
 
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
-    private final AgentScoreRepository agentScoreRepository;
-    private final AgentScoreService agentScoreService;
 
-    // Weight factors for auto-assignment algorithm
-    private static final double WORKLOAD_WEIGHT = 0.6;  // Higher weight = workload matters more
-    private static final double SCORE_WEIGHT = 0.4;     // Higher weight = productivity matters more
-    private static final double BASE_SCORE = 1.0;       // Base score for agents with no history
+    // Priority weights for workload calculation
+    private static final double HIGH_PRIORITY_WEIGHT = 0.5;
+    private static final double MEDIUM_PRIORITY_WEIGHT = 0.3;
+    private static final double LOW_PRIORITY_WEIGHT = 0.2;
 
     /**
      * Get workload information for all agents.
@@ -43,14 +53,16 @@ public class TicketAutoAssignmentService {
             int inProgress = (int) activeTickets.stream()
                     .filter(t -> t.getStatus() == TicketStatus.IN_PROGRESS).count();
 
-            // Get latest productivity score
-            double productivityScore = agentScoreRepository
-                    .findTopByAgentIdOrderByWeekStartDateDesc(agent.getId())
-                    .map(AgentScore::getProductivityScore)
-                    .orElse(BASE_SCORE);
+            // Count tickets by priority
+            int highPriorityCount = (int) activeTickets.stream()
+                    .filter(t -> t.getPriority() == Priority.HIGH).count();
+            int mediumPriorityCount = (int) activeTickets.stream()
+                    .filter(t -> t.getPriority() == Priority.MEDIUM).count();
+            int lowPriorityCount = (int) activeTickets.stream()
+                    .filter(t -> t.getPriority() == Priority.LOW).count();
 
             int totalActive = notStarted + inProgress;
-            double assignmentPriority = calculateAssignmentPriority(totalActive, productivityScore);
+            double workloadScore = calculateWorkloadScore(highPriorityCount, mediumPriorityCount, lowPriorityCount);
 
             return AgentWorkload.builder()
                     .agentId(agent.getId())
@@ -59,39 +71,28 @@ public class TicketAutoAssignmentService {
                     .notStartedCount(notStarted)
                     .inProgressCount(inProgress)
                     .totalActiveTickets(totalActive)
-                    .productivityScore(productivityScore)
-                    .assignmentPriority(assignmentPriority)
+                    .highPriorityCount(highPriorityCount)
+                    .mediumPriorityCount(mediumPriorityCount)
+                    .lowPriorityCount(lowPriorityCount)
+                    .workloadScore(workloadScore)
                     .build();
         }).collect(Collectors.toList());
     }
 
     /**
-     * Calculate assignment priority for an agent.
-     * Higher priority = should receive more tickets.
+     * Calculate workload score for an agent.
+     * Lower score = should receive more tickets (less workload).
      *
-     * Formula: priority = (scoreWeight * normalizedScore) - (workloadWeight * normalizedWorkload)
-     *
-     * The idea is:
-     * - Lower workload = higher priority (agent has capacity)
-     * - Higher productivity score = higher priority (agent is efficient)
+     * Formula: score = 0.5*high + 0.3*medium + 0.2*low
      */
-    private double calculateAssignmentPriority(int totalActiveTickets, double productivityScore) {
-        // Normalize workload (inverse - lower workload = higher value)
-        // Using 1 / (1 + workload) to get a value between 0 and 1
-        double normalizedWorkload = 1.0 / (1.0 + totalActiveTickets);
-
-        // Normalize score (assuming max practical score is around 20 tickets/week)
-        double normalizedScore = Math.min(productivityScore / 20.0, 1.0);
-
-        // Combine with a base factor to ensure new agents (no score) still get assigned
-        double priority = (WORKLOAD_WEIGHT * normalizedWorkload) +
-                         (SCORE_WEIGHT * (normalizedScore + 0.1)); // +0.1 base to not penalize new agents
-
-        return Math.round(priority * 1000.0) / 1000.0; // Round to 3 decimal places
+    private double calculateWorkloadScore(int highCount, int mediumCount, int lowCount) {
+        return (HIGH_PRIORITY_WEIGHT * highCount) +
+               (MEDIUM_PRIORITY_WEIGHT * mediumCount) +
+               (LOW_PRIORITY_WEIGHT * lowCount);
     }
 
     /**
-     * Find the best agent to assign a ticket to.
+     * Find the best agent to assign a ticket to (for single ticket assignment).
      */
     public Optional<User> findBestAgentForAssignment() {
         List<AgentWorkload> workloads = getAgentWorkloads();
@@ -100,8 +101,8 @@ public class TicketAutoAssignmentService {
             return Optional.empty();
         }
 
-        // Sort by assignment priority (descending - highest priority first)
-        workloads.sort((a, b) -> Double.compare(b.getAssignmentPriority(), a.getAssignmentPriority()));
+        // Sort by workload score (ascending - lowest workload first)
+        workloads.sort(Comparator.comparingDouble(AgentWorkload::getWorkloadScore));
 
         String bestAgentId = workloads.get(0).getAgentId();
         return userRepository.findById(bestAgentId);
@@ -111,6 +112,11 @@ public class TicketAutoAssignmentService {
      * Auto-assign a single ticket to the best available agent.
      */
     public Ticket autoAssignTicket(Ticket ticket) {
+        if (ticket.getPriority() == null) {
+            log.warn("Cannot auto-assign ticket {} without priority", ticket.getId());
+            return ticket;
+        }
+
         Optional<User> bestAgent = findBestAgentForAssignment();
 
         if (bestAgent.isEmpty()) {
@@ -130,7 +136,7 @@ public class TicketAutoAssignmentService {
                 .userId("SYSTEM")
                 .userName("System")
                 .action("TICKET_AUTO_ASSIGNED")
-                .details("Ticket auto-assigned to " + agent.getName() + " based on workload and productivity score")
+                .details("Ticket auto-assigned to " + agent.getName() + " based on current workload")
                 .timestamp(LocalDateTime.now())
                 .build();
         ticket.getActivities().add(activity);
@@ -140,21 +146,90 @@ public class TicketAutoAssignmentService {
     }
 
     /**
-     * Auto-assign all unassigned tickets.
+     * Auto-assign all unassigned tickets by priority order.
      */
     public List<Ticket> autoAssignAllUnassignedTickets() {
-        List<Ticket> unassignedTickets = ticketRepository.findByAssignedAgentIdIsNull();
+        List<Ticket> unassignedTickets = ticketRepository.findByAssignedAgentIdIsNull()
+                .stream()
+                .filter(ticket -> ticket.getPriority() != null)
+                .collect(Collectors.toList());
+
+        // Group tickets by priority
+        Map<Priority, List<Ticket>> ticketsByPriority = unassignedTickets.stream()
+                .collect(Collectors.groupingBy(Ticket::getPriority));
+
         List<Ticket> assignedTickets = new ArrayList<>();
 
-        for (Ticket ticket : unassignedTickets) {
-            Ticket assigned = autoAssignTicket(ticket);
-            if (assigned.getAssignedAgentId() != null) {
-                assignedTickets.add(assigned);
+        // Assign in priority order: HIGH, MEDIUM, LOW
+        Priority[] priorityOrder = {Priority.HIGH, Priority.MEDIUM, Priority.LOW};
+
+        for (Priority priority : priorityOrder) {
+            List<Ticket> priorityTickets = ticketsByPriority.getOrDefault(priority, new ArrayList<>());
+            if (!priorityTickets.isEmpty()) {
+                List<Ticket> assigned = assignTicketsByPriority(priorityTickets);
+                assignedTickets.addAll(assigned);
             }
         }
 
-        log.info("Auto-assigned {} tickets out of {} unassigned tickets",
+        log.info("Auto-assigned {} tickets out of {} unassigned tickets with priorities",
                 assignedTickets.size(), unassignedTickets.size());
+        return assignedTickets;
+    }
+
+    /**
+     * Assign tickets of a specific priority to agents with lowest workload first.
+     */
+    private List<Ticket> assignTicketsByPriority(List<Ticket> tickets) {
+        List<Ticket> assignedTickets = new ArrayList<>();
+        List<AgentWorkload> agentWorkloads = getAgentWorkloads();
+
+        if (agentWorkloads.isEmpty()) {
+            log.warn("No agents available for auto-assignment");
+            return assignedTickets;
+        }
+
+        // Sort agents by workload score (lowest first)
+        agentWorkloads.sort(Comparator.comparingDouble(AgentWorkload::getWorkloadScore));
+
+        int agentIndex = 0;
+        for (Ticket ticket : tickets) {
+            if (agentIndex >= agentWorkloads.size()) {
+                // Reset to first agent if we've cycled through all
+                agentIndex = 0;
+            }
+
+            AgentWorkload workload = agentWorkloads.get(agentIndex);
+            Optional<User> agentOpt = userRepository.findById(workload.getAgentId());
+
+            if (agentOpt.isPresent()) {
+                User agent = agentOpt.get();
+                ticket.setAssignedAgentId(agent.getId());
+                ticket.setAssignedAgentName(agent.getName());
+                ticket.setAutoAssigned(true);
+                ticket.setUpdatedAt(LocalDateTime.now());
+
+                // Add activity
+                Activity activity = Activity.builder()
+                        .id(UUID.randomUUID().toString())
+                        .userId("SYSTEM")
+                        .userName("System")
+                        .action("TICKET_AUTO_ASSIGNED")
+                        .details("Ticket auto-assigned to " + agent.getName() + " based on current workload")
+                        .timestamp(LocalDateTime.now())
+                        .build();
+                ticket.getActivities().add(activity);
+
+                ticketRepository.save(ticket);
+                assignedTickets.add(ticket);
+
+                log.info("Auto-assigned {} priority ticket {} to agent {} (workload: {})",
+                        ticket.getPriority(), ticket.getId(), agent.getName(), workload.getWorkloadScore());
+
+                // Move to next agent for round-robin distribution
+                agentIndex++;
+            }
+        }
+
         return assignedTickets;
     }
 

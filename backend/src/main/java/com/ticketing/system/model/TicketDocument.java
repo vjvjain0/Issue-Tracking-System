@@ -30,6 +30,9 @@ public class TicketDocument {
     private String status;
 
     @Field(type = FieldType.Keyword)
+    private String priority;
+
+    @Field(type = FieldType.Keyword)
     private String assignedAgentId;
 
     @Field(type = FieldType.Keyword)

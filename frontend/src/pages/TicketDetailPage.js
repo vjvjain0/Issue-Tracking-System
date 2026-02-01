@@ -103,6 +103,8 @@ const TicketDetailPage = () => {
       TICKET_ASSIGNED: '👤',
       STATUS_CHANGED: '🔄',
       COMMENT_ADDED: '💬',
+      SLA_ESCALATION: '⚠️',
+      PRIORITY_CHANGED: '⬆️',
     };
     return icons[action] || '📌';
   };
@@ -142,7 +144,14 @@ const TicketDetailPage = () => {
         <div className="ticket-detail-layout">
           <div className="ticket-main">
             <div className="ticket-header-section">
-              <StatusBadge status={ticket.status} size="large" />
+              <div className="badges-row">
+                <StatusBadge status={ticket.status} size="large" />
+                {ticket.priority && (
+                  <span className={`priority-badge-large priority-${ticket.priority.toLowerCase()}`}>
+                    {ticket.priority} Priority
+                  </span>
+                )}
+              </div>
               <div className="ticket-id-row">
                 <span className="ticket-id-label">Ticket ID:</span>
                 <code className="ticket-id-value">{ticket.id}</code>

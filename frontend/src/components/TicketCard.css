@@ -15,9 +15,10 @@
 
 .ticket-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 8px;
     margin-bottom: 12px;
+    flex-wrap: wrap;
 }
 
 .ticket-status {
@@ -48,9 +49,33 @@
     color: #c62828;
 }
 
+.ticket-priority {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.priority-low {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+}
+
+.priority-medium {
+    background-color: #fff3e0;
+    color: #ef6c00;
+}
+
+.priority-high {
+    background-color: #fce4ec;
+    color: #c62828;
+}
+
 .ticket-date {
     font-size: 0.8rem;
     color: #6c757d;
+    margin-left: auto;
 }
 
 .ticket-id {

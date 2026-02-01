@@ -16,6 +16,8 @@ public class AgentWorkloadResponse {
     private int notStartedCount;
     private int inProgressCount;
     private int totalActiveTickets;
-    private double productivityScore;
-    private double assignmentPriority;
+    private int highPriorityCount;
+    private int mediumPriorityCount;
+    private int lowPriorityCount;
+    private double workloadScore;
 }

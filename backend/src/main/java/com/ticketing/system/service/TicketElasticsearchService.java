@@ -46,6 +46,7 @@ public class TicketElasticsearchService {
                     .title(ticket.getTitle())
                     .description(ticket.getDescription())
                     .status(ticket.getStatus().name())
+                    .priority(ticket.getPriority() != null ? ticket.getPriority().name() : null)
                     .assignedAgentId(ticket.getAssignedAgentId())
                     .assignedAgentName(ticket.getAssignedAgentName())
                     .customerEmail(ticket.getCustomerEmail())
@@ -118,7 +119,8 @@ public class TicketElasticsearchService {
                     .index("tickets")
                     .query(boolBuilder.build()._toQuery())
                     .size(limit)
-                    .sort(so -> so.field(f -> f.field("createdAt").order(SortOrder.Desc)))
+                    .sort(so -> so.field(f -> f.field("priority").order(SortOrder.Desc))) // HIGH first (HIGH has highest ordinal)
+                    .sort(so -> so.field(f -> f.field("createdAt").order(SortOrder.Desc))) // Then newest first
             );
 
             SearchResponse<TicketDocument> response = elasticsearchClient.search(searchRequest, TicketDocument.class);
@@ -152,7 +154,8 @@ public class TicketElasticsearchService {
                     .index("tickets")
                     .query(boolBuilder.build()._toQuery())
                     .size(limit)
-                    .sort(so -> so.field(f -> f.field("createdAt").order(SortOrder.Desc)))
+                    .sort(so -> so.field(f -> f.field("priority").order(SortOrder.Desc))) // HIGH first (HIGH has highest ordinal)
+                    .sort(so -> so.field(f -> f.field("createdAt").order(SortOrder.Desc))) // Then newest first
             );
 
             SearchResponse<TicketDocument> response = elasticsearchClient.search(searchRequest, TicketDocument.class);
@@ -188,7 +191,8 @@ public class TicketElasticsearchService {
                     .query(boolBuilder.build()._toQuery())
                     .from(page * size)
                     .size(size)
-                    .sort(so -> so.field(f -> f.field("createdAt").order(SortOrder.Desc)))
+                    .sort(so -> so.field(f -> f.field("priority").order(SortOrder.Desc))) // HIGH first (HIGH has highest ordinal)
+                    .sort(so -> so.field(f -> f.field("createdAt").order(SortOrder.Desc))) // Then newest first
             );
 
             SearchResponse<TicketDocument> response = elasticsearchClient.search(searchRequest, TicketDocument.class);
@@ -223,7 +227,8 @@ public class TicketElasticsearchService {
                     .query(boolBuilder.build()._toQuery())
                     .from(page * size)
                     .size(size)
-                    .sort(so -> so.field(f -> f.field("createdAt").order(SortOrder.Desc)))
+                    .sort(so -> so.field(f -> f.field("priority").order(SortOrder.Desc))) // HIGH first (HIGH has highest ordinal)
+                    .sort(so -> so.field(f -> f.field("createdAt").order(SortOrder.Desc))) // Then newest first
             );
 
             SearchResponse<TicketDocument> response = elasticsearchClient.search(searchRequest, TicketDocument.class);

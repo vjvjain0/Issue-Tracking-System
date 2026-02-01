@@ -24,12 +24,12 @@ public class ElasticsearchIndexInitializer implements CommandLineRunner {
     public void run(String... args) {
         log.info("Checking Elasticsearch index status...");
 
-         if (shouldReindexTickets()) {
-             log.info("Reindexing tickets to Elasticsearch...");
-             ticketElasticsearchService.reindexAllTickets();
-         } else {
-             log.info("Elasticsearch index is up to date");
-         }
+        if (shouldReindexTickets()) {
+            log.info("Reindexing tickets to Elasticsearch...");
+            ticketElasticsearchService.reindexAllTickets();
+        } else {
+            log.info("Elasticsearch index is up to date");
+        }
     }
 
     private boolean shouldReindexTickets() {

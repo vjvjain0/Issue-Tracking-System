@@ -1,8 +1,17 @@
 package com.ticketing.system.controller;
 
-import com.ticketing.system.dto.*;
+import com.ticketing.system.dto.AddCommentRequest;
+import com.ticketing.system.dto.AssignTicketRequest;
+import com.ticketing.system.dto.AutoAssignResponse;
+import com.ticketing.system.dto.CreateTicketRequest;
+import com.ticketing.system.dto.TicketResponse;
+import com.ticketing.system.dto.TicketSearchResponse;
+import com.ticketing.system.dto.TicketSummaryResponse;
+import com.ticketing.system.dto.UpdatePriorityRequest;
+import com.ticketing.system.dto.UpdateStatusRequest;
 import com.ticketing.system.model.Ticket;
 import com.ticketing.system.security.UserPrincipal;
+import com.ticketing.system.service.SlaEscalationService;
 import com.ticketing.system.service.TicketAutoAssignmentService;
 import com.ticketing.system.service.TicketService;
 import jakarta.validation.Valid;
@@ -10,7 +19,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
@@ -23,6 +39,7 @@ public class TicketController {
 
     private final TicketService ticketService;
     private final TicketAutoAssignmentService autoAssignmentService;
+    private final SlaEscalationService slaEscalationService;
 
     /**
      * Create a new ticket (public endpoint for customer app integration)
@@ -198,6 +215,31 @@ public class TicketController {
             @AuthenticationPrincipal UserPrincipal principal) {
         TicketResponse ticket = ticketService.assignTicket(ticketId, request, principal.getId());
         return ResponseEntity.ok(ticket);
+    }
+
+    /**
+     * Update ticket priority (manager only)
+     * PATCH /api/v1/tickets/{ticketId}/priority
+     */
+    @PatchMapping("/{ticketId}/priority")
+    @PreAuthorize("hasRole('MANAGER')")
+    public ResponseEntity<TicketResponse> updatePriority(
+            @PathVariable String ticketId,
+            @Valid @RequestBody UpdatePriorityRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        TicketResponse ticket = ticketService.updatePriority(ticketId, request, principal.getId());
+        return ResponseEntity.ok(ticket);
+    }
+
+    /**
+     * Manually trigger SLA escalation check (manager only - for testing)
+     * POST /api/v1/tickets/sla-escalation
+     */
+    @PostMapping("/sla-escalation")
+    @PreAuthorize("hasRole('MANAGER')")
+    public ResponseEntity<String> triggerSlaEscalation() {
+        slaEscalationService.escalateOverdueTickets();
+        return ResponseEntity.ok("SLA escalation check completed");
     }
 
     private TicketSummaryResponse mapToTicketSummary(Ticket ticket) {

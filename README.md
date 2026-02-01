@@ -6,19 +6,20 @@ A comprehensive issue tracking system built with Java Spring Boot 3 backend, Rea
 
 ### Agent Features
 - Login using work email and password
-- View tickets assigned to them in segregated view by status
+- View tickets assigned to them in segregated view by status **(sorted by priority: HIGH → MEDIUM → LOW)**
 - Update ticket status (NOT_STARTED → IN_PROGRESS → RESOLVED/INVALID)
 - Add comments to tickets
 - View history of activities with timestamps
-- **Search tickets** by ID, title, or description (only their assigned tickets)
+- **Search tickets** by ID, title, or description (only their assigned tickets, results sorted by priority)
 
 ### Manager Features
 - View all tickets in the system
 - View unassigned tickets
-- Manually assign tickets to agents
-- **Auto-assign tickets** based on workload and productivity (via Agents page)
-- View agent workload and productivity scores (via Agents page)
-- **Search all tickets** system-wide by ID, title, or description
+- **Set ticket priorities** (HIGH, MEDIUM, LOW) for proper assignment and escalation
+- Manually assign tickets to agents (requires priority to be set)
+- **Auto-assign tickets** based on current workload (via Agents page)
+- View agent workload scores and priority breakdowns (via Agents page)
+- **Search all tickets** system-wide by ID, title, or description (results sorted by priority)
 
 ### Search Features
 - **Powered by Elasticsearch**: Fast, scalable search with fuzzy matching and relevance scoring
@@ -29,19 +30,25 @@ A comprehensive issue tracking system built with Java Spring Boot 3 backend, Rea
 - **Result count**: Shows total number of matching tickets
 - **Quick navigation**: Click autocomplete results to go directly to ticket details
 
-### Auto-Assignment System
-- **Smart ticket distribution** based on agent workload and productivity
-- **Workload tracking**: Monitors NOT_STARTED and IN_PROGRESS tickets per agent
-- **Productivity scoring**: Weekly scores based on tickets closed (Resolved = 1.0 pts, Invalid = 0.5 pts)
-- **Assignment priority**: Agents with lower workload and higher productivity get more tickets
-- **Scheduled scoring**: Automatic weekly score calculation every Monday at 1:00 AM (via cron job)
+### Priority & Auto-Assignment System
+- **Priority levels**: Tickets can be set to HIGH, MEDIUM, or LOW priority by managers
+- **SLA-based escalation**: Automatic priority escalation if tickets aren't closed within timeframes:
+  - LOW priority tickets escalate to MEDIUM after 7 days
+  - MEDIUM priority tickets escalate to HIGH after 3 days
+  - HIGH priority tickets are already at maximum priority
+- **Smart ticket distribution** based on current workload only
+- **Workload calculation**: `0.5 × HIGH + 0.3 × MEDIUM + 0.2 × LOW` priority tickets per agent
+- **Assignment priority**: Agents with lower workload scores get assigned tickets first
+- **Priority-ordered assignment**: HIGH priority tickets assigned first, then MEDIUM, then LOW
 
 ### Ticket Management
 - Tickets can be created via public API (for customer app integration)
+- **Priority management**: Managers can set HIGH, MEDIUM, or LOW priority levels
 - Status flow: NOT_STARTED → IN_PROGRESS → INVALID or RESOLVED
-- Each ticket has title, description, status, and assigned agent
-- Comments and activity history tracking
-- Tracks when tickets are closed for productivity scoring
+- Each ticket has title, description, status, priority, and assigned agent
+- Comments and activity history tracking (including priority changes and SLA escalations)
+- **Automatic SLA escalation** based on priority timeframes
+- Assignment requires priority to be set first
 - **Ticket ID display** on cards and detail pages with copy functionality
 
 ## Tech Stack
@@ -142,7 +149,9 @@ All endpoints use the `/api/v1` prefix.
 | PATCH | `/api/v1/tickets/{ticketId}/status` | Update ticket status | Yes (Agent) |
 | POST | `/api/v1/tickets/{ticketId}/comments` | Add comment to ticket | Yes (Agent) |
 | PATCH | `/api/v1/tickets/{ticketId}/assign` | Assign ticket to agent | Yes (Manager) |
+| PATCH | `/api/v1/tickets/{ticketId}/priority` | Update ticket priority | Yes (Manager) |
 | POST | `/api/v1/tickets/auto-assign` | Auto-assign all unassigned tickets | Yes (Manager) |
+| POST | `/api/v1/tickets/sla-escalation` | Manually trigger SLA escalation check | Yes (Manager) |
 
 ### User Management
 | Method | Endpoint | Description | Auth Required |
@@ -153,11 +162,9 @@ All endpoints use the `/api/v1` prefix.
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
 | GET | `/api/v1/agents` | Get all agents | Yes (Manager) |
-| GET | `/api/v1/agents/workloads` | Get all agent workloads | Yes (Manager) |
+| GET | `/api/v1/agents/workloads` | Get all agent workloads and priority breakdowns | Yes (Manager) |
 | GET | `/api/v1/agents/{agentId}/workload` | Get specific agent workload | Yes (Manager) |
-| GET | `/api/v1/agents/scores` | Get all agent scores (current week) | Yes (Manager) |
-| GET | `/api/v1/agents/scores?weeks={n}` | Get agent scores for last n weeks | Yes (Manager) |
-| GET | `/api/v1/agents/{agentId}/score` | Get specific agent's latest score | Yes (Manager) |
+| GET | `/api/v1/agents/{agentId}` | Get agent details including workload score | Yes (Manager) |
 
 ## Sample API Calls
 
@@ -205,6 +212,16 @@ curl -X PATCH http://localhost:8080/api/v1/tickets/{ticketId}/status \
   }'
 ```
 
+### Set Ticket Priority
+```bash
+curl -X PATCH http://localhost:8080/api/v1/tickets/{ticketId}/priority \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer {token}" \
+  -d '{
+    "priority": "HIGH"
+  }'
+```
+
 ### Assign Ticket to Agent
 ```bash
 curl -X PATCH http://localhost:8080/api/v1/tickets/{ticketId}/assign \
@@ -227,6 +244,12 @@ curl -X POST http://localhost:8080/api/v1/tickets/auto-assign \
   -H "Authorization: Bearer {token}"
 ```
 
+### Manually Trigger SLA Escalation
+```bash
+curl -X POST http://localhost:8080/api/v1/tickets/sla-escalation \
+  -H "Authorization: Bearer {token}"
+```
+
 ### Get Agent Workloads
 ```bash
 curl -X GET http://localhost:8080/api/v1/agents/workloads \
@@ -243,7 +266,6 @@ Issue Tracking System/
 │   │   │   ├── DataInitializer.java           # Initial data setup
 │   │   │   └── ElasticsearchIndexInitializer.java # ES index management
 │   │   ├── controller/      # REST controllers
-│   │   │   ├── AdminController.java          # Admin endpoints
 │   │   │   ├── AgentController.java          # /api/v1/agents/*
 │   │   │   ├── AuthController.java           # /api/v1/auth/*
 │   │   │   ├── TicketController.java         # /api/v1/tickets/*
@@ -251,15 +273,18 @@ Issue Tracking System/
 │   │   ├── dto/             # Data transfer objects
 │   │   ├── exception/       # Exception handling
 │   │   ├── model/           # MongoDB and ES documents
+│   │   │   ├── Priority.java                # Priority enum
 │   │   │   ├── Ticket.java                  # MongoDB document
 │   │   │   └── TicketDocument.java          # Elasticsearch document
 │   │   ├── repository/      # MongoDB and ES repositories
 │   │   │   ├── TicketDocumentRepository.java # ES repository
 │   │   │   └── ... (MongoDB repositories)
 │   │   ├── security/        # JWT security
-│   │   └── service/         # Business logic
-│   │       ├── TicketElasticsearchService.java # ES operations
-│   │       └── ... (other services)
+│   │   ├── service/         # Business logic
+│   │   │   ├── SlaEscalationService.java    # SLA escalation logic
+│   │   │   ├── TicketAutoAssignmentService.java # Auto-assignment logic
+│   │   │   ├── TicketElasticsearchService.java # ES operations
+│   │   │   └── ... (other services)
 │   └── pom.xml
 ├── frontend/
 │   ├── src/
@@ -277,47 +302,66 @@ Issue Tracking System/
 On first startup, the system automatically creates:
 - 1 Manager account
 - 5 Agent accounts
-- 50 tickets with various statuses randomly assigned to agents
-- **Agent productivity scores for the last 3 weeks**
+- 50 tickets with various statuses, **random priorities (HIGH/MEDIUM/LOW)**, randomly assigned to agents
+- 3 additional **unassigned tickets without priorities** (for testing auto-assignment)
 - **Elasticsearch index** with proper mappings for ticket search
 
 This data is only created if the database is empty. On subsequent startups, the system checks if the Elasticsearch index is synchronized and reindexes if necessary.
 
-## Auto-Assignment Algorithm
+## Priority & Auto-Assignment System
 
-The auto-assignment system uses a weighted algorithm to distribute tickets fairly:
+### Ticket Priorities
+Tickets can be assigned one of three priority levels:
+- **HIGH**: Most urgent tickets (require immediate attention)
+- **MEDIUM**: Standard priority tickets
+- **LOW**: Least urgent tickets
 
-### Priority Calculation
+### SLA Escalation Rules
+The system automatically escalates ticket priorities if they remain unresolved beyond time limits:
+- **LOW** → **MEDIUM** after 7 days
+- **MEDIUM** → **HIGH** after 3 days
+- **HIGH** priority tickets do not escalate further
+
+Escalation runs every hour automatically, or can be triggered manually by managers.
+
+### Workload-Based Auto-Assignment
+
+The auto-assignment system distributes tickets based on current agent workload:
+
+### Workload Score Calculation
 ```
-priority = (0.6 × normalizedWorkload) + (0.4 × normalizedScore)
+workloadScore = (0.5 × highPriorityTickets) + (0.3 × mediumPriorityTickets) + (0.2 × lowPriorityTickets)
 ```
 
-Where:
-- **normalizedWorkload** = 1 / (1 + activeTickets) — Lower workload = higher priority
-- **normalizedScore** = productivityScore / 20 — Higher productivity = higher priority
+Where priority tickets are counted from each agent's active tickets (NOT_STARTED + IN_PROGRESS).
 
-### Productivity Score
-- Calculated weekly (automatically every Monday at 1 AM)
-- **Resolved tickets** = 1.0 point each
-- **Invalid tickets** = 0.5 points each
-- Used to reward efficient agents with more tickets
+### Assignment Priority Order
+1. **Priority-based**: HIGH priority tickets assigned first, then MEDIUM, then LOW
+2. **Workload-based**: Within each priority level, tickets go to agents with lowest workload scores first
+3. **Round-robin**: When agents have equal workloads, tickets are distributed evenly
+
+### Assignment Requirements
+- Tickets must have a priority set before they can be assigned (manually or automatically)
+- Unassigned tickets without priorities are skipped during auto-assignment
 
 ### How It Works
-1. System calculates current workload for each agent (NOT_STARTED + IN_PROGRESS tickets)
-2. Retrieves latest productivity score for each agent
-3. Computes assignment priority using the formula above
-4. Assigns ticket to agent with highest priority
-5. Repeats for each unassigned ticket
+1. System identifies all unassigned tickets with priorities set
+2. Groups tickets by priority (HIGH → MEDIUM → LOW)
+3. For each priority group:
+   - Sorts agents by lowest workload score first
+   - Assigns tickets to agents in round-robin fashion within the group
+4. Updates ticket assignments and activity logs
 
 ## Elasticsearch Configuration
 
 The system uses Elasticsearch for fast, fuzzy search capabilities:
 
 - **Index Name**: `tickets`
-- **Document Type**: `TicketDocument` with keyword fields for dates and text fields for searchable content
+- **Document Type**: `TicketDocument` with keyword fields for priority/dates and text fields for searchable content
 - **Search Features**:
   - Fuzzy matching with `AUTO` fuzziness on title and description
   - Exact matching on ticket ID (when query matches hex pattern)
+  - **Priority-based sorting**: Results sorted HIGH → MEDIUM → LOW → newest first
   - Role-based filtering (agents see only assigned tickets)
 - **Initialization**: Automatic index creation and synchronization on startup
 - **Manual Reindexing**: Use `POST /admin/reindex` if needed

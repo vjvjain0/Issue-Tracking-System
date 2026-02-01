@@ -26,9 +26,11 @@ public class AgentWorkload {
     // Total active tickets (NOT_STARTED + IN_PROGRESS)
     private int totalActiveTickets;
 
-    // Agent's current productivity score (from current week or last available week)
-    private double productivityScore;
+    // Priority-based ticket counts
+    private int highPriorityCount;
+    private int mediumPriorityCount;
+    private int lowPriorityCount;
 
-    // Assignment priority score (higher = should be assigned more tickets)
-    private double assignmentPriority;
+    // Workload score: 0.5*high + 0.3*medium + 0.2*low (lower = should be assigned more tickets)
+    private double workloadScore;
 }

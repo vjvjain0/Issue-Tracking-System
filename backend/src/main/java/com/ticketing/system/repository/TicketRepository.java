@@ -17,6 +17,7 @@ public interface TicketRepository extends MongoRepository<Ticket, String> {
     List<Ticket> findByAssignedAgentId(String agentId);
     List<Ticket> findByAssignedAgentIdAndStatus(String agentId, TicketStatus status);
     List<Ticket> findByStatus(TicketStatus status);
+    List<Ticket> findByStatusNotIn(List<TicketStatus> statuses);
     List<Ticket> findByAssignedAgentIdIsNull();
 
     // Find tickets closed by an agent within a date range

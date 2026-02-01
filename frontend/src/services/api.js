@@ -69,7 +69,11 @@ export const ticketAPI = {
   // Assign ticket to agent (manager only)
   assignTicket: (ticketId, agentId) =>
     api.patch(`/tickets/${ticketId}/assign`, { agentId }),
-  
+
+  // Update ticket priority (manager only)
+  updatePriority: (ticketId, priority) =>
+    api.patch(`/tickets/${ticketId}/priority`, { priority }),
+
   // Auto-assign all unassigned tickets (manager only)
   autoAssignAll: () => api.post("/tickets/auto-assign"),
   

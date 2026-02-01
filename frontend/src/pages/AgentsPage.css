@@ -192,7 +192,7 @@
   text-transform: uppercase;
 }
 
-.agent-performance {
+.agent-workload {
   text-align: center;
   padding: 8px 16px;
   border-radius: 8px;
@@ -200,16 +200,45 @@
   border: 2px solid;
 }
 
-.performance-score {
+.workload-score {
   display: block;
   font-size: 1.25rem;
   font-weight: 700;
 }
 
-.performance-label {
+.workload-label {
   font-size: 0.75rem;
   font-weight: 500;
   text-transform: uppercase;
+}
+
+.ticket-breakdown {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.priority-breakdown {
+  display: flex;
+  gap: 8px;
+  font-size: 0.7rem;
+  color: #6c757d;
+}
+
+.priority-high {
+  color: #c62828;
+  font-weight: 600;
+}
+
+.priority-medium {
+  color: #ef6c00;
+  font-weight: 600;
+}
+
+.priority-low {
+  color: #2e7d32;
+  font-weight: 600;
 }
 
 .agent-arrow {
@@ -408,7 +437,7 @@
   letter-spacing: 0.5px;
 }
 
-.productivity-display {
+.workload-display {
   display: flex;
   align-items: center;
   gap: 24px;
@@ -417,23 +446,23 @@
   border-radius: 12px;
 }
 
-.productivity-score-large {
+.workload-score-large {
   font-size: 3rem;
   font-weight: 700;
 }
 
-.productivity-info {
+.workload-info {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.productivity-level {
+.workload-level {
   font-size: 1.1rem;
   font-weight: 600;
 }
 
-.productivity-desc {
+.workload-desc {
   font-size: 0.875rem;
   color: #6c757d;
 }
@@ -476,7 +505,7 @@
     flex: 1;
   }
 
-  .agent-performance {
+  .agent-workload {
     order: 3;
     flex: 1;
   }
@@ -493,7 +522,7 @@
     grid-template-columns: 1fr;
   }
 
-  .productivity-display {
+  .workload-display {
     flex-direction: column;
     text-align: center;
   }

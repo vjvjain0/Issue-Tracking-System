@@ -23,6 +23,6 @@ public class AgentDetailResponse {
     private int notStartedCount;
     private int inProgressCount;
     private int closedCount;  // resolved + invalid
-    
-    private double productivityScore;
+
+    private double workloadScore;
 }

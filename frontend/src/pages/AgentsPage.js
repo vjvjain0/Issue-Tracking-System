@@ -91,16 +91,16 @@ const AgentsPage = () => {
     });
   };
 
-  const getPerformanceColor = (score) => {
-    if (score >= 7) return "#2e7d32";
-    if (score >= 4) return "#ef6c00";
-    return "#c62828";
+  const getWorkloadColor = (score) => {
+    if (score <= 1) return "#2e7d32"; // Low workload - good
+    if (score <= 3) return "#ef6c00"; // Medium workload
+    return "#c62828"; // High workload - needs attention
   };
 
-  const getPerformanceLabel = (score) => {
-    if (score >= 7) return "High";
-    if (score >= 4) return "Medium";
-    return "Low";
+  const getWorkloadLabel = (score) => {
+    if (score <= 1) return "Low";
+    if (score <= 3) return "Medium";
+    return "High";
   };
 
   const totalActiveTickets = workloads.reduce(
@@ -108,9 +108,9 @@ const AgentsPage = () => {
     0,
   );
 
-  // Sort by poorest performance (lowest productivity score first)
+  // Sort by lowest workload first (agents with less work get priority)
   const sortedWorkloads = [...workloads].sort(
-    (a, b) => a.productivityScore - b.productivityScore
+    (a, b) => a.workloadScore - b.workloadScore
   );
 
   if (loading) {
@@ -132,8 +132,8 @@ const AgentsPage = () => {
           <div className="header-content">
             <h1>Agents</h1>
             <p>
-              View agent performance and manage ticket distribution. 
-              <span className="sort-info">Sorted by lowest performance first.</span>
+              View agent workloads and manage ticket distribution.
+              <span className="sort-info">Sorted by lowest workload first.</span>
             </p>
           </div>
           <button
@@ -179,27 +179,34 @@ const AgentsPage = () => {
                 <span className="agent-email">{workload.agentEmail}</span>
               </div>
               <div className="agent-active-tickets">
-                <span className="ticket-count">{workload.totalActiveTickets}</span>
-                <span className="ticket-label">Active Tickets</span>
+                <div className="ticket-breakdown">
+                  <span className="ticket-count">{workload.totalActiveTickets}</span>
+                  <span className="ticket-label">Active Tickets</span>
+                  <div className="priority-breakdown">
+                    <span className="priority-high">H:{workload.highPriorityCount}</span>
+                    <span className="priority-medium">M:{workload.mediumPriorityCount}</span>
+                    <span className="priority-low">L:{workload.lowPriorityCount}</span>
+                  </div>
+                </div>
               </div>
-              <div 
-                className="agent-performance"
-                style={{ 
-                  backgroundColor: `${getPerformanceColor(workload.productivityScore)}15`,
-                  borderColor: getPerformanceColor(workload.productivityScore)
+              <div
+                className="agent-workload"
+                style={{
+                  backgroundColor: `${getWorkloadColor(workload.workloadScore)}15`,
+                  borderColor: getWorkloadColor(workload.workloadScore)
                 }}
               >
-                <span 
-                  className="performance-score"
-                  style={{ color: getPerformanceColor(workload.productivityScore) }}
+                <span
+                  className="workload-score"
+                  style={{ color: getWorkloadColor(workload.workloadScore) }}
                 >
-                  {workload.productivityScore.toFixed(1)}
+                  {workload.workloadScore.toFixed(1)}
                 </span>
-                <span 
-                  className="performance-label"
-                  style={{ color: getPerformanceColor(workload.productivityScore) }}
+                <span
+                  className="workload-label"
+                  style={{ color: getWorkloadColor(workload.workloadScore) }}
                 >
-                  {getPerformanceLabel(workload.productivityScore)}
+                  {getWorkloadLabel(workload.workloadScore)} Workload
                 </span>
               </div>
               <div className="agent-arrow">→</div>
@@ -280,23 +287,23 @@ const AgentsPage = () => {
                   </div>
 
                   <div className="modal-section">
-                    <h3>Productivity Score</h3>
-                    <div className="productivity-display">
-                      <div 
-                        className="productivity-score-large"
-                        style={{ color: getPerformanceColor(agentDetails.productivityScore) }}
+                    <h3>Workload Score</h3>
+                    <div className="workload-display">
+                      <div
+                        className="workload-score-large"
+                        style={{ color: getWorkloadColor(agentDetails.workloadScore || 0) }}
                       >
-                        {agentDetails.productivityScore.toFixed(1)}
+                        {(agentDetails.workloadScore || 0).toFixed(1)}
                       </div>
-                      <div className="productivity-info">
-                        <span 
-                          className="productivity-level"
-                          style={{ color: getPerformanceColor(agentDetails.productivityScore) }}
+                      <div className="workload-info">
+                        <span
+                          className="workload-level"
+                          style={{ color: getWorkloadColor(agentDetails.workloadScore || 0) }}
                         >
-                          {getPerformanceLabel(agentDetails.productivityScore)} Performance
+                          {getWorkloadLabel(agentDetails.workloadScore || 0)} Workload
                         </span>
-                        <span className="productivity-desc">
-                          Weekly productivity based on tickets resolved
+                        <span className="workload-desc">
+                          Current workload based on active tickets and priorities
                         </span>
                       </div>
                     </div>

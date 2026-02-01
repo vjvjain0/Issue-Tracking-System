@@ -52,8 +52,40 @@
   margin-bottom: 24px;
 }
 
-.ticket-header-section .status-badge {
+.badges-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.ticket-header-section .status-badge {
+  margin-bottom: 0;
+}
+
+.priority-badge-large {
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  display: inline-block;
+}
+
+.priority-low {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.priority-medium {
+  background-color: #fff3e0;
+  color: #ef6c00;
+}
+
+.priority-high {
+  background-color: #fce4ec;
+  color: #c62828;
 }
 
 .ticket-id-row {

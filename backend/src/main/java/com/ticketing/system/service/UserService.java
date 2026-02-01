@@ -4,7 +4,6 @@ import com.ticketing.system.dto.AgentDetailResponse;
 import com.ticketing.system.dto.UserResponse;
 import com.ticketing.system.exception.ApiException;
 import com.ticketing.system.model.*;
-import com.ticketing.system.repository.AgentScoreRepository;
 import com.ticketing.system.repository.TicketRepository;
 import com.ticketing.system.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,9 +20,11 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final TicketRepository ticketRepository;
-    private final AgentScoreRepository agentScoreRepository;
 
-    private static final double BASE_SCORE = 1.0;
+    // Priority weights for workload calculation
+    private static final double HIGH_PRIORITY_WEIGHT = 0.5;
+    private static final double MEDIUM_PRIORITY_WEIGHT = 0.3;
+    private static final double LOW_PRIORITY_WEIGHT = 0.2;
 
     public User getUserById(String userId) {
         return userRepository.findById(userId)
@@ -70,11 +71,17 @@ public class UserService {
                 .filter(t -> t.getStatus() == TicketStatus.IN_PROGRESS).count();
         int closed = closedTickets.size();
 
-        // Get productivity score
-        double productivityScore = agentScoreRepository
-                .findTopByAgentIdOrderByWeekStartDateDesc(agentId)
-                .map(AgentScore::getProductivityScore)
-                .orElse(BASE_SCORE);
+        // Calculate priority-based workload score
+        int highPriorityCount = (int) activeTickets.stream()
+                .filter(t -> t.getPriority() == Priority.HIGH).count();
+        int mediumPriorityCount = (int) activeTickets.stream()
+                .filter(t -> t.getPriority() == Priority.MEDIUM).count();
+        int lowPriorityCount = (int) activeTickets.stream()
+                .filter(t -> t.getPriority() == Priority.LOW).count();
+
+        double workloadScore = (HIGH_PRIORITY_WEIGHT * highPriorityCount) +
+                              (MEDIUM_PRIORITY_WEIGHT * mediumPriorityCount) +
+                              (LOW_PRIORITY_WEIGHT * lowPriorityCount);
 
         return AgentDetailResponse.builder()
                 .agentId(agent.getId())
@@ -86,7 +93,7 @@ public class UserService {
                 .notStartedCount(notStarted)
                 .inProgressCount(inProgress)
                 .closedCount(closed)
-                .productivityScore(productivityScore)
+                .workloadScore(workloadScore)
                 .build();
     }
 

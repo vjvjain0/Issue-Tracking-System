@@ -15,6 +15,15 @@ const TicketCard = ({ ticket, showAgent = false }) => {
     return statusClasses[status] || '';
   };
 
+  const getPriorityClass = (priority) => {
+    const priorityClasses = {
+      LOW: 'priority-low',
+      MEDIUM: 'priority-medium',
+      HIGH: 'priority-high',
+    };
+    return priorityClasses[priority] || '';
+  };
+
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
@@ -34,6 +43,11 @@ const TicketCard = ({ ticket, showAgent = false }) => {
         <span className={`ticket-status ${getStatusClass(ticket.status)}`}>
           {ticket.status.replace('_', ' ')}
         </span>
+        {ticket.priority && (
+          <span className={`ticket-priority ${getPriorityClass(ticket.priority)}`}>
+            {ticket.priority}
+          </span>
+        )}
         <span className="ticket-date">{formatDate(ticket.createdAt)}</span>
       </div>
 

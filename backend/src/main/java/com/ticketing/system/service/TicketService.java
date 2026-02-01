@@ -6,10 +6,12 @@ import com.ticketing.system.dto.CreateTicketRequest;
 import com.ticketing.system.dto.TicketResponse;
 import com.ticketing.system.dto.TicketSearchResponse;
 import com.ticketing.system.dto.TicketSummaryResponse;
+import com.ticketing.system.dto.UpdatePriorityRequest;
 import com.ticketing.system.dto.UpdateStatusRequest;
 import com.ticketing.system.exception.ApiException;
 import com.ticketing.system.model.Activity;
 import com.ticketing.system.model.Comment;
+import com.ticketing.system.model.Priority;
 import com.ticketing.system.model.Role;
 import com.ticketing.system.model.Ticket;
 import com.ticketing.system.model.TicketStatus;
@@ -71,6 +73,11 @@ public class TicketService {
 
     public TicketResponse assignTicket(String ticketId, AssignTicketRequest request, String managerId) {
         Ticket ticket = getTicketById(ticketId);
+
+        if (ticket.getPriority() == null) {
+            throw new ApiException("Cannot assign ticket without priority. Please set priority first.", HttpStatus.BAD_REQUEST);
+        }
+
         User agent = userRepository.findById(request.getAgentId())
                 .orElseThrow(() -> new ApiException("Agent not found", HttpStatus.NOT_FOUND));
 
@@ -96,6 +103,34 @@ public class TicketService {
                 .userName(manager.getName())
                 .action("TICKET_ASSIGNED")
                 .details(details)
+                .timestamp(LocalDateTime.now())
+                .build();
+        ticket.getActivities().add(activityLog);
+
+        Ticket savedTicket = ticketRepository.save(ticket);
+        ticketElasticsearchService.indexTicket(savedTicket);
+        return mapToTicketResponse(savedTicket);
+    }
+
+    public TicketResponse updatePriority(String ticketId, UpdatePriorityRequest request, String managerId) {
+        Ticket ticket = getTicketById(ticketId);
+        User manager = userRepository.findById(managerId)
+                .orElseThrow(() -> new ApiException("Manager not found", HttpStatus.NOT_FOUND));
+
+        if (manager.getRole() != Role.MANAGER) {
+            throw new ApiException("Only managers can update ticket priority", HttpStatus.FORBIDDEN);
+        }
+
+        Priority oldPriority = ticket.getPriority();
+        ticket.setPriority(request.getPriority());
+        ticket.setUpdatedAt(LocalDateTime.now());
+
+        Activity activityLog = Activity.builder()
+                .id(UUID.randomUUID().toString())
+                .userId(managerId)
+                .userName(manager.getName())
+                .action("PRIORITY_CHANGED")
+                .details("Priority changed from " + (oldPriority != null ? oldPriority : "NONE") + " to " + request.getPriority())
                 .timestamp(LocalDateTime.now())
                 .build();
         ticket.getActivities().add(activityLog);
@@ -226,6 +261,12 @@ public class TicketService {
 
     public List<TicketSummaryResponse> getTicketSummariesForAgent(String agentId) {
         return ticketRepository.findByAssignedAgentId(agentId).stream()
+                .sorted((a, b) -> {
+                    if (a.getPriority() == null && b.getPriority() == null) return 0;
+                    if (a.getPriority() == null) return 1; // null priorities go last
+                    if (b.getPriority() == null) return -1;
+                    return b.getPriority().ordinal() - a.getPriority().ordinal(); // Reverse for HIGH first (HIGH=2, MEDIUM=1, LOW=0)
+                })
                 .map(this::mapToTicketSummary)
                 .collect(Collectors.toList());
     }
@@ -238,6 +279,14 @@ public class TicketService {
         grouped.put("IN_PROGRESS", new ArrayList<>());
         grouped.put("RESOLVED", new ArrayList<>());
         grouped.put("INVALID", new ArrayList<>());
+
+        // Sort tickets by priority (HIGH first, then MEDIUM, then LOW)
+        tickets.sort((a, b) -> {
+            if (a.getPriority() == null && b.getPriority() == null) return 0;
+            if (a.getPriority() == null) return 1; // null priorities go last
+            if (b.getPriority() == null) return -1;
+            return b.getPriority().ordinal() - a.getPriority().ordinal(); // Reverse for HIGH first (HIGH=2, MEDIUM=1, LOW=0)
+        });
 
         for (Ticket ticket : tickets) {
             grouped.get(ticket.getStatus().name()).add(mapToTicketSummary(ticket));
@@ -303,6 +352,7 @@ public class TicketService {
                 .title(ticket.getTitle())
                 .description(ticket.getDescription())
                 .status(ticket.getStatus())
+                .priority(ticket.getPriority())
                 .assignedAgentId(ticket.getAssignedAgentId())
                 .assignedAgentName(ticket.getAssignedAgentName())
                 .customerEmail(ticket.getCustomerEmail())
@@ -322,6 +372,7 @@ public class TicketService {
                 .title(ticket.getTitle())
                 .description(ticket.getDescription())
                 .status(ticket.getStatus())
+                .priority(ticket.getPriority())
                 .assignedAgentId(ticket.getAssignedAgentId())
                 .assignedAgentName(ticket.getAssignedAgentName())
                 .customerName(ticket.getCustomerName())
